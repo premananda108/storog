@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
@@ -20,6 +23,8 @@ import androidx.core.view.WindowCompat
 import ua.pp.soulrise.storog.ui.theme.StorogTheme // Ваша тема
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var mainViewModel: MainViewModel
 
     private var hasCameraPermission by mutableStateOf(false)
 
@@ -38,7 +43,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        mainViewModel = ViewModelProvider(this, AndroidViewModelFactory.getInstance(application)).get(MainViewModel::class.java)
+
+        // Отправляем сообщение при старте приложения
+        mainViewModel.onSendAlertButtonClicked("Приложение запущено") { success ->
+            if (success) {
+                // Можно добавить Toast или лог, если нужно
+                // Toast.makeText(applicationContext, "Сообщение о запуске отправлено!", Toast.LENGTH_SHORT).show()
+                android.util.Log.i("MainActivity", "Сообщение о запуске отправлено в Telegram.")
+            } else {
+                // Toast.makeText(applicationContext, "Ошибка отправки сообщения о запуске.", Toast.LENGTH_SHORT).show()
+                android.util.Log.e("MainActivity", "Ошибка отправки сообщения о запуске в Telegram.")
+            }
+        }
+
         WindowCompat.setDecorFitsSystemWindows(window, false) // Для edge-to-edge
+        // Этот блок был перемещен и изменен выше, удаляем дубликат если он был создан по ошибке предыдущего шага
 
         // Проверяем разрешение при старте
         checkCameraPermission()
@@ -47,7 +68,7 @@ class MainActivity : ComponentActivity() {
             StorogTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     if (hasCameraPermission) {
-                        CameraScreen(modifier = Modifier.padding(innerPadding))
+                        CameraScreen(modifier = Modifier.padding(innerPadding), mainViewModel = mainViewModel)
                     } else {
                         Box(
                             modifier = Modifier

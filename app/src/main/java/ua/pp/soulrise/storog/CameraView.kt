@@ -1,6 +1,11 @@
 package ua.pp.soulrise.storog
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
+import android.widget.Toast
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -9,24 +14,37 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
-fun CameraScreen(modifier: Modifier = Modifier) {
+fun CameraScreen(modifier: Modifier = Modifier, mainViewModel: MainViewModel) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var previewView: PreviewView? by remember { mutableStateOf(null) } // Для доступа к PreviewView
+    val imageCapture = remember { ImageCapture.Builder().build() }
+    val cameraExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
 
-    Box(modifier = modifier.fillMaxWidth().fillMaxHeight(0.33f)) {
+    Box(modifier = modifier.fillMaxSize()) { // Изменено на fillMaxSize для кнопки
         AndroidView(
             factory = { ctx ->
                 PreviewView(ctx).apply {
@@ -52,13 +70,70 @@ fun CameraScreen(modifier: Modifier = Modifier) {
                     cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         cameraSelector,
-                        preview
+                        preview,
+                        imageCapture // Добавляем ImageCapture
                     )
                 } catch (exc: Exception) {
                     Log.e("CameraScreen", "Use case binding failed", exc)
                 }
             }
         )
-        // Здесь можно добавить другие элементы UI поверх превью камеры, если нужно
+
+        Button(
+            onClick = {
+                takePhoto(context, imageCapture, cameraExecutor, mainViewModel)
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        ) {
+            Text("Отправить фото")
+        }
     }
+}
+
+private fun takePhoto(
+    context: Context,
+    imageCapture: ImageCapture,
+    cameraExecutor: ExecutorService,
+    mainViewModel: MainViewModel
+) {
+    val photoFile = File(
+        context.externalMediaDirs.firstOrNull(),
+        SimpleDateFormat("yyyy-MM-dd-HH-mm-ss-SSS", Locale.US)
+            .format(System.currentTimeMillis()) + ".jpg"
+    )
+
+    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+    imageCapture.takePicture(
+        outputOptions,
+        ContextCompat.getMainExecutor(context),
+        object : ImageCapture.OnImageSavedCallback {
+            override fun onError(exc: ImageCaptureException) {
+                Log.e("CameraScreen", "Photo capture failed: ${exc.message}", exc)
+                Toast.makeText(context, "Ошибка съемки: ${exc.message}", Toast.LENGTH_SHORT).show()
+            }
+
+            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                val msg = "Фото сохранено: ${output.savedUri}"
+                Log.d("CameraScreen", msg)
+                // Конвертируем Uri в ByteArray и отправляем
+                output.savedUri?.let { uri ->
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val photoBytes = inputStream.readBytes()
+                        mainViewModel.onSendPhotoButtonClicked(photoBytes) { success ->
+                            val resultMsg = if (success) "Фото успешно отправлено" else "Ошибка отправки фото"
+                            Toast.makeText(context, resultMsg, Toast.LENGTH_SHORT).show()
+                            Log.d("CameraScreen", resultMsg)
+                            // Опционально: удалить файл после отправки
+                            // photoFile.delete()
+                        }
+                    }
+                } ?: run {
+                    Toast.makeText(context, "Ошибка: URI фото не найден", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    )
 }

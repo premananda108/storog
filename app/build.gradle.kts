@@ -13,7 +13,7 @@ android {
         minSdk = 26 // CameraX требует API 21+, PreviewView API 24+ для некоторых фич
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
