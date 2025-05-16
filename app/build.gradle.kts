@@ -66,6 +66,12 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion") // Для PreviewView
 
-    testImplementation("junit:junit:4.13.2")
+    val ktorVersion = "2.3.11" // Используйте актуальную версию
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion") // Движок для Ktor
+    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
 }
