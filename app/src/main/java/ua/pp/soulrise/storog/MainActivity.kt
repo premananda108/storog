@@ -25,6 +25,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import ua.pp.soulrise.storog.ui.theme.StorogTheme // Ваша тема
+import ua.pp.soulrise.storog.CameraScreen // Импорт CameraScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -87,49 +88,5 @@ class MainActivity : ComponentActivity() {
                 requestPermissionLauncher.launch(Manifest.permission.CAMERA)
             }
         }
-    }
-}
-
-@Composable
-fun CameraScreen(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-    var previewView: PreviewView? by remember { mutableStateOf(null) } // Для доступа к PreviewView
-
-    Box(modifier = modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { ctx ->
-                PreviewView(ctx).apply {
-                    this.scaleType = PreviewView.ScaleType.FILL_CENTER // или другой тип масштабирования
-                    layoutParams = android.view.ViewGroup.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    previewView = this // Сохраняем ссылку
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-            update = { view -> // 'view' здесь это PreviewView
-                val cameraProvider = cameraProviderFuture.get() // Блокирующий вызов, но getInstance обычно быстрый
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(view.surfaceProvider)
-                }
-
-                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
-                try {
-                    cameraProvider.unbindAll() // Отвязываем предыдущие юзкейсы
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        cameraSelector,
-                        preview
-                    )
-                } catch (exc: Exception) {
-                    Log.e("CameraScreen", "Use case binding failed", exc)
-                }
-            }
-        )
-        // Здесь можно добавить другие элементы UI поверх превью камеры, если нужно
     }
 }
