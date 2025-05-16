@@ -122,10 +122,14 @@ private fun takePhoto(
                 output.savedUri?.let { uri ->
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
                         val photoBytes = inputStream.readBytes()
-                        mainViewModel.onSendPhotoButtonClicked(photoBytes) { success ->
-                            val resultMsg = if (success) "Фото успешно отправлено" else "Ошибка отправки фото"
-                            Toast.makeText(context, resultMsg, Toast.LENGTH_SHORT).show()
-                            Log.d("CameraScreen", resultMsg)
+                        mainViewModel.onSendPhotoButtonClicked(photoBytes) { success, geminiResponse ->
+                            val resultMsg = if (success) {
+                                geminiResponse ?: "Фото успешно отправлено и проанализировано"
+                            } else {
+                                geminiResponse ?: "Ошибка отправки или анализа фото"
+                            }
+                            Toast.makeText(context, resultMsg, Toast.LENGTH_LONG).show() // Используем LENGTH_LONG для более длинных сообщений
+                            Log.d("CameraScreen", "Callback: success=$success, response='$geminiResponse', displayedMsg='$resultMsg'")
                             // Опционально: удалить файл после отправки
                             // photoFile.delete()
                         }

@@ -72,6 +72,9 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
 
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0") // Используйте последнюю версию
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3") // Если еще не добавлено
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
 }
