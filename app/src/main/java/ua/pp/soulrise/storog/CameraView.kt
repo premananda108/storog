@@ -11,6 +11,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,69 +35,67 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 
 @Composable
-fun CameraScreen(modifier: Modifier = Modifier, mainViewModel: MainViewModel) {
+fun CameraScreen(
+    modifier: Modifier = Modifier,
+    mainViewModel: MainViewModel,
+    imageCapture: ImageCapture,
+    cameraExecutor: ExecutorService // Добавлены параметры
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var previewView: PreviewView? by remember { mutableStateOf(null) } // Для доступа к PreviewView
-    val imageCapture = remember { ImageCapture.Builder().build() }
-    val cameraExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
 
-    Box(modifier = modifier.fillMaxSize()) { // Изменено на fillMaxSize для кнопки
-        AndroidView(
-            factory = { ctx ->
-                PreviewView(ctx).apply {
-                    this.scaleType = PreviewView.ScaleType.FILL_CENTER // или другой тип масштабирования
-                    layoutParams = android.view.ViewGroup.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    previewView = this // Сохраняем ссылку
+
+    Column(modifier = modifier) { // Используем переданный модификатор и Column как корневой элемент
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) { // Box для камеры, занимает доступное пространство
+            AndroidView(
+                factory = { ctx ->
+                    PreviewView(ctx).apply {
+                        this.scaleType = PreviewView.ScaleType.FILL_CENTER // или другой тип масштабирования
+                        layoutParams = android.view.ViewGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        previewView = this // Сохраняем ссылку
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+                update = { view -> // 'view' здесь это PreviewView
+                    val cameraProvider = cameraProviderFuture.get() // Блокирующий вызов, но getInstance обычно быстрый
+                    val preview = Preview.Builder().build().also {
+                        it.setSurfaceProvider(view.surfaceProvider)
+                    }
+
+                    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+                    try {
+                        cameraProvider.unbindAll() // Отвязываем предыдущие юзкейсы
+                        cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            cameraSelector,
+                            preview,
+                            imageCapture // Добавляем ImageCapture
+                        )
+                    } catch (exc: Exception) {
+                        Log.e("CameraScreen", "Use case binding failed", exc)
+                    }
                 }
-            },
-            modifier = Modifier.fillMaxSize(),
-            update = { view -> // 'view' здесь это PreviewView
-                val cameraProvider = cameraProviderFuture.get() // Блокирующий вызов, но getInstance обычно быстрый
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(view.surfaceProvider)
-                }
-
-                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
-                try {
-                    cameraProvider.unbindAll() // Отвязываем предыдущие юзкейсы
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        cameraSelector,
-                        preview,
-                        imageCapture // Добавляем ImageCapture
-                    )
-                } catch (exc: Exception) {
-                    Log.e("CameraScreen", "Use case binding failed", exc)
-                }
-            }
-        )
-
-        Button(
-            onClick = {
-                takePhoto(context, imageCapture, cameraExecutor, mainViewModel)
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp)
-        ) {
-            Text("Отправить фото")
+            )
         }
+
+
     }
 }
 
-private fun takePhoto(
+fun takePhoto(
     context: Context,
     imageCapture: ImageCapture,
-    cameraExecutor: ExecutorService,
-    mainViewModel: MainViewModel
+    onImageCaptured: (ByteArray?) -> Unit // Измененный параметр: колбэк для байтов изображения
 ) {
     val photoFile = File(
         context.externalMediaDirs.firstOrNull(),
@@ -113,6 +112,7 @@ private fun takePhoto(
             override fun onError(exc: ImageCaptureException) {
                 Log.e("CameraScreen", "Photo capture failed: ${exc.message}", exc)
                 Toast.makeText(context, "Ошибка съемки: ${exc.message}", Toast.LENGTH_SHORT).show()
+                onImageCaptured(null) // Сообщаем об ошибке через колбэк
             }
 
             override fun onImageSaved(output: ImageCapture.OutputFileResults) {
@@ -122,20 +122,14 @@ private fun takePhoto(
                 output.savedUri?.let { uri ->
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
                         val photoBytes = inputStream.readBytes()
-                        mainViewModel.onSendPhotoButtonClicked(photoBytes) { success, geminiResponse ->
-                            val resultMsg = if (success) {
-                                geminiResponse ?: "Фото успешно отправлено и проанализировано"
-                            } else {
-                                geminiResponse ?: "Ошибка отправки или анализа фото"
-                            }
-                            Toast.makeText(context, resultMsg, Toast.LENGTH_LONG).show() // Используем LENGTH_LONG для более длинных сообщений
-                            Log.d("CameraScreen", "Callback: success=$success, response='$geminiResponse', displayedMsg='$resultMsg'")
-                            // Опционально: удалить файл после отправки
-                            // photoFile.delete()
-                        }
+                        onImageCaptured(photoBytes)
+                        // Логика отправки через ViewModel теперь будет обрабатываться в MainActivity
+                        // Опционально: удалить файл после обработки
+                        // photoFile.delete()
                     }
                 } ?: run {
                     Toast.makeText(context, "Ошибка: URI фото не найден", Toast.LENGTH_SHORT).show()
+                    onImageCaptured(null) // Сообщаем об ошибке через колбэк
                 }
             }
         }
