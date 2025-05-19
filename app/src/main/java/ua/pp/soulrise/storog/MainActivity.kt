@@ -21,9 +21,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Slider
+import androidx.compose.material3.TextField // Add TextField import
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +43,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import ua.pp.soulrise.storog.ui.theme.StorogTheme
 import java.nio.ByteBuffer
+import java.io.ByteArrayOutputStream // Added for bitmap to byte array conversion
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -54,7 +59,23 @@ class MainActivity : ComponentActivity() {
     private var isMonitoringActive by mutableStateOf(false)
     private var comparisonMessage by mutableStateOf("")
     private val comparisonIntervalMillis = 5000L
-    private val differenceThreshold = 15.0
+    private var differenceThreshold by mutableStateOf(10.0f)
+    private var aiPrompt by mutableStateOf("есть ли на изображении кошка?")
+    
+    private fun saveSettings() {
+        val sharedPreferences = getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
+        with(sharedPreferences.edit()) {
+            putFloat("differenceThreshold", differenceThreshold)
+            putString("aiPrompt", aiPrompt)
+            apply()
+        }
+    }
+    
+    private fun loadSettings() {
+        val sharedPreferences = getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
+        differenceThreshold = sharedPreferences.getFloat("differenceThreshold", 15.0f)
+        aiPrompt = sharedPreferences.getString("aiPrompt", "есть ли на изображении кошка?") ?: "есть ли на изображении кошка?"
+    }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -69,6 +90,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        loadSettings()
 
         mainViewModel = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application)).get(MainViewModel::class.java)
         imageCapture = ImageCapture.Builder().build()
@@ -113,35 +135,56 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     Text(if (isMonitoringActive) "Стоп" else "Старт")
                                 }
-
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    .fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Button(
                                     onClick = {
-                                        ua.pp.soulrise.storog.takePhoto(
-                                            applicationContext,
-                                            imageCapture,
-                                            onImageCaptured = { photoBytes ->
-                                                if (photoBytes != null) {
-                                                    mainViewModel.onSendPhotoButtonClicked(photoBytes) { success, message ->
-                                                        runOnUiThread {
-                                                            if (success) {
-                                                                Toast.makeText(applicationContext, "Фото отправлено!", Toast.LENGTH_SHORT).show()
-                                                            } else {
-                                                                Toast.makeText(applicationContext, "Ошибка отправки фото: ${message ?: "Неизвестная ошибка"}", Toast.LENGTH_SHORT).show()
-                                                            }
-                                                        }
-                                                    }
-                                                } else {
-                                                    runOnUiThread {
-                                                        Toast.makeText(applicationContext, "Ошибка при создании фото", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            }
-                                        )
+                                        if (differenceThreshold > 0f) {
+                                            differenceThreshold = (differenceThreshold - 5f).coerceIn(0f, 100f)
+                                        }
                                     }
                                 ) {
-                                    Text("Отправить фото")
+                                    Text("-")
+                                }
+                                
+                                Text(
+                                    text = "${differenceThreshold.toInt()}%",
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                                
+                                Button(
+                                    onClick = {
+                                        if (differenceThreshold < 100f) {
+                                            differenceThreshold = (differenceThreshold + 5f).coerceIn(0f, 100f)
+                                        }
+                                    }
+                                ) {
+                                    Text("+")
                                 }
                             }
+                            // Add TextField for AI Prompt
+                            Row(
+                                modifier = Modifier
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextField(
+                                    value = aiPrompt,
+                                    onValueChange = { aiPrompt = it },
+                                    label = { Text("Промпт для ИИ") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = false // Allow multiple lines
+                                )
+                            }
+
                             Text(
                                 text = comparisonMessage,
                                 modifier = Modifier
@@ -183,6 +226,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        saveSettings()
         cameraExecutor.shutdown()
         stopImageMonitoring()
     }
@@ -218,15 +262,39 @@ class MainActivity : ComponentActivity() {
                                     }
                                     Log.d("MainActivity", message)
 
-                                    if (difference > differenceThreshold) {
-                                        val alertMessage = "Обнаружено значительное изменение: ${String.format("%.2f", difference)}%"
+                                    if (difference > differenceThreshold.toDouble()) {
+                                        val originalAlertMessage = "Обнаружено значительное изменение: ${String.format("%.2f", difference)}%"
+                                        val alertMessageWithPhotoSendAttempt = "$originalAlertMessage. Попытка отправки фото."
                                         runOnUiThread {
-                                            comparisonMessage = alertMessage
+                                            comparisonMessage = alertMessageWithPhotoSendAttempt
                                         }
-                                        Log.w("MainActivity", alertMessage)
-                                        mainViewModel.onSendAlertButtonClicked(alertMessage) { success ->
-                                            if (success) Log.d("MainActivity", "Alert sent for significant change.")
-                                            else Log.e("MainActivity", "Failed to send alert for significant change.")
+                                        Log.w("MainActivity", alertMessageWithPhotoSendAttempt)
+
+
+                                        // Конвертируем currentBitmap в ByteArray (currentBitmap здесь не null из-за внешней проверки)
+                                        val photoBytes = bitmapToByteArray(currentBitmap!!)
+
+                                        // Отправляем фото с AI промптом
+                                        mainViewModel.processAndSendImageWithPrompt(photoBytes, aiPrompt) { analysisSuccess, responseMsg ->
+                                            runOnUiThread {
+                                                if (responseMsg?.startsWith("SKIPPED_NO:") == true) {
+                                                    val actualAiResponse = responseMsg.substringAfter("SKIPPED_NO:")
+                                                    val skippedMessage = "Отправка пропущена. Ответ ИИ: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "Нет ответа"}"
+                                                    Toast.makeText(applicationContext, skippedMessage, Toast.LENGTH_LONG).show()
+                                                    Log.i("MainActivity", "Telegram send skipped due to AI response. AI: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "No response"}")
+                                                    comparisonMessage = skippedMessage // Обновляем UI текстом
+                                                } else if (analysisSuccess) { // Анализ успешен И отправка не была пропущена
+                                                    val successMessage = "Фото отправлено! Ответ ИИ: ${responseMsg ?: "Нет ответа"}"
+                                                    Toast.makeText(applicationContext, successMessage, Toast.LENGTH_LONG).show()
+                                                    Log.d("MainActivity", "Photo sent successfully. AI response: ${responseMsg ?: "No response"}")
+                                                    comparisonMessage = successMessage // Обновляем UI текстом
+                                                } else { // Ошибка анализа или отправки (и не случай SKIPPED_NO)
+                                                    val errorText = "Ошибка отправки фото или анализа ИИ: ${responseMsg ?: "Неизвестная ошибка"}"
+                                                    Toast.makeText(applicationContext, errorText, Toast.LENGTH_LONG).show()
+                                                    Log.e("MainActivity", errorText)
+                                                    comparisonMessage = errorText // Обновляем UI текстом
+                                                }
+                                            }
                                         }
                                     }
                                     currentBitmap.recycle() // Moved inside the launch block
@@ -261,9 +329,15 @@ class MainActivity : ComponentActivity() {
         initialBitmap = null
         comparisonMessage = "Мониторинг остановлен."
         Log.d("MainActivity", "Image monitoring stopped.")
-    }
+}
 
-    private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap? {
+private fun bitmapToByteArray(bitmap: Bitmap): ByteArray {
+    val stream = ByteArrayOutputStream()
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+    return stream.toByteArray()
+}
+
+private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap? {
         if (imageProxy.format != android.graphics.ImageFormat.JPEG) {
             Log.e("MainActivity", "Unexpected image format: ${imageProxy.format}. Expected JPEG.")
             imageProxy.close()

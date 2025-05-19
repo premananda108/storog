@@ -51,8 +51,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Функция для отправки фото
-    fun onSendPhotoButtonClicked(photoBytes: ByteArray, callback: (Boolean, String?) -> Unit) {
+    // Функция для отправки фото с AI промптом
+    fun processAndSendImageWithPrompt(photoBytes: ByteArray, prompt: String, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             if (!::telegramSender.isInitialized || !::geminiService.isInitialized) {
                 android.util.Log.e("MainViewModel", "TelegramSender or GeminiService not initialized.")
@@ -73,8 +73,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 // Используем streaming версию для примера, но можно и non-streaming
                 // Для простоты здесь мы соберем весь ответ, прежде чем отправлять
+                val modifiedPrompt = prompt + " Всегда начинай ответ с 'Да' или 'Нет' или 'Не уверен'"
                 val responseFlow = geminiService.generateChatResponseStreaming(
-                    userPrompt = "есть ли на фото человек?",
+                    userPrompt = modifiedPrompt, // Используем измененный промпт
                     imageBitmap = bitmap,
                     chatHistory = chatHistory // Передаем и обновляем историю чата
                 )
@@ -100,11 +101,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 analysisSuccess = false
             }
 
-            // Отправляем фото с ответом от Gemini в качестве подписи
-            val captionToSend = if (analysisSuccess) geminiResponseText else "Не удалось получить описание от Gemini."
-            val telegramSuccess = telegramSender.sendPhoto(photoBytes = photoBytes, caption = captionToSend)
-
-            callback(telegramSuccess && analysisSuccess, geminiResponseText)
+            // Проверяем ответ от Gemini перед отправкой
+            if (analysisSuccess && geminiResponseText?.startsWith("Нет", ignoreCase = true) == true) {
+                android.util.Log.i("MainViewModel", "Отправка в Telegram пропущена, так как ответ ИИ начинается с 'Нет'. Ответ: $geminiResponseText")
+                // Сообщаем об успехе анализа, но о том, что отправка была пропущена.
+                // Передаем специальное сообщение или флаг, если это необходимо для UI.
+                // В данном случае, callback(true, ...) будет означать, что анализ успешен, но отправка могла быть пропущена.
+                // MainActivity должен будет проверить responseMsg, чтобы понять, была ли отправка.
+                // Или можно добавить еще один параметр в callback.
+                // Пока что, для простоты, будем считать, что если geminiResponseText начинается с "Нет",
+                // то telegramSuccess будет false, но analysisSuccess может быть true.
+                // Чтобы UI мог это различить, изменим логику callback.
+                callback(true, "SKIPPED_NO:$geminiResponseText") // Успех анализа, но отправка пропущена
+            } else {
+                // Отправляем фото с ответом от Gemini в качестве подписи
+                val captionToSend = if (analysisSuccess) geminiResponseText else "Не удалось получить описание от Gemini."
+                val telegramSuccess = telegramSender.sendPhoto(photoBytes = photoBytes, caption = captionToSend)
+                callback(telegramSuccess && analysisSuccess, geminiResponseText)
+            }
         }
     }
 
