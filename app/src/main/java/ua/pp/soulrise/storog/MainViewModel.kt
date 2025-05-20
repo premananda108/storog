@@ -1,6 +1,7 @@
 package ua.pp.soulrise.storog
 
 import android.app.Application
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.lifecycle.AndroidViewModel
@@ -23,14 +24,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 properties.load(inputStream)
             }
             val botToken = properties.getProperty("MY_BOT_TOKEN")
-            val targetChatId = properties.getProperty("TARGET_CHAT_ID")
             val geminiApiKey = properties.getProperty("GEMINI_API_KEY")
+            val sharedPreferences = getApplication<Application>().getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
+            val targetChatId = sharedPreferences.getString("TARGET_CHAT_ID", null)
 
             if (botToken != null && targetChatId != null && geminiApiKey != null) {
                 telegramSender = TelegramBotSender(botToken, targetChatId)
                 geminiService = GeminiService(geminiApiKey) // Инициализация GeminiService
             } else {
-                android.util.Log.e("MainViewModel", "GEMINI_API_KEY, MY_BOT_TOKEN or TARGET_CHAT_ID not found in properties file.")
+                android.util.Log.e("MainViewModel", "GEMINI_API_KEY, MY_BOT_TOKEN or TARGET_CHAT_ID not found.")
                 // В реальном приложении здесь должна быть более надежная обработка ошибок.
             }
         } catch (e: Exception) {
