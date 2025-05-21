@@ -16,6 +16,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private lateinit var telegramSender: TelegramBotSender
     private lateinit var geminiService: GeminiService
     private val chatHistory = mutableListOf<Content>() // Инициализируем историю чата
+    private var messagesSent = 0 // Счетчик отправленных сообщений
 
     init {
         val properties = Properties()
@@ -119,7 +120,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Отправляем фото с ответом от Gemini в качестве подписи
                 val captionToSend = if (analysisSuccess) geminiResponseText else "Не удалось получить описание от Gemini."
                 val telegramSuccess = telegramSender.sendPhoto(photoBytes = photoBytes, caption = captionToSend)
-                callback(telegramSuccess && analysisSuccess, geminiResponseText)
+                if (telegramSuccess) {
+                    messagesSent++
+                    if (messagesSent >= 3) {
+                        // Отправляем сообщение о достижении лимита
+                        telegramSender.sendMessage("Достигнут лимит в 3 сообщения. Мониторинг остановлен.")
+                        // Вызываем callback с специальным флагом для остановки мониторинга
+                        callback(true, "STOP_MONITORING:$geminiResponseText")
+                    } else {
+                        callback(true, geminiResponseText)
+                    }
+                } else {
+                    callback(false, geminiResponseText)
+                }
             }
         }
     }

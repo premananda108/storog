@@ -2,10 +2,9 @@ package ua.pp.soulrise.storog
 
 import android.Manifest
 import android.content.Context
-import android.content.Intent // Убедимся, что импорт есть
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -22,18 +21,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-// import androidx.compose.foundation.lazy.LazyRow // Если не используется, можно удалить
-// import androidx.compose.foundation.lazy.items // Если не используется, можно удалить
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-// import androidx.compose.material3.Slider // Если не используется, можно удалить
 import androidx.compose.material3.TextField
-// import androidx.compose.material3.AlertDialog // Если HelpDialog - это AlertDialog, он может быть нужен
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext // Убедимся, что импорт есть
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -45,8 +43,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import ua.pp.soulrise.storog.ui.theme.StorogTheme
-import ua.pp.soulrise.storog.bitmapToByteArray // Добавленный импорт
-import ua.pp.soulrise.storog.imageProxyToBitmap // Добавленный импорт
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -109,6 +105,7 @@ class MainActivity : ComponentActivity() {
         }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
         checkCameraPermission()
 
         setContent {
@@ -116,24 +113,30 @@ class MainActivity : ComponentActivity() {
                 val currentContext = LocalContext.current // Получаем контекст для использования в topBar
 
                 Scaffold(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .systemBarsPadding(),
                     topBar = {
-                        // Ваша верхняя панель теперь здесь
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp), // Отступы для topBar
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.surface
                         ) {
-                            Button(onClick = {
-                                val intent = Intent(currentContext, SettingsActivity::class.java)
-                                currentContext.startActivity(intent)
-                            }) {
-                                Text("Настройки")
-                            }
-                            Button(onClick = { showHelpDialog = true }) {
-                                Text("Справка")
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Button(onClick = {
+                                    val intent = Intent(currentContext, SettingsActivity::class.java)
+                                    currentContext.startActivity(intent)
+                                }) {
+                                    Text("Настройки")
+                                }
+                                Button(onClick = { showHelpDialog = true }) {
+                                    Text("Справка")
+                                }
                             }
                         }
                     }
@@ -143,7 +146,6 @@ class MainActivity : ComponentActivity() {
                             .padding(innerPadding) // Применяем innerPadding от Scaffold
                             .fillMaxSize()
                     ) {
-                        // Верхняя панель УДАЛЕНА отсюда
 
                         if (showHelpDialog) {
                             // Вызов вашей Composable функции HelpDialog, определенной в другом файле
@@ -155,9 +157,7 @@ class MainActivity : ComponentActivity() {
                                 // Вызов вашей Composable функции CameraScreen, определенной в другом файле
                                 CameraScreen(
                                     modifier = Modifier.fillMaxSize(),
-                                    mainViewModel = mainViewModel,
-                                    imageCapture = imageCapture,
-                                    cameraExecutor = cameraExecutor
+                                    imageCapture = imageCapture
                                 )
                             }
                             Row(
@@ -178,6 +178,13 @@ class MainActivity : ComponentActivity() {
                                     Text(if (isMonitoringActive) "Стоп" else "Старт")
                                 }
                             }
+                            Text(
+                                text = "Порог срабатывания",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                textAlign = TextAlign.Center
+                            )
                             Row(
                                 modifier = Modifier
                                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -188,7 +195,7 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         if (differenceThreshold > 0f) {
-                                            differenceThreshold = (differenceThreshold - 5f).coerceIn(0f, 100f)
+                                            differenceThreshold = (differenceThreshold - 1f).coerceIn(0f, 100f)
                                         }
                                     }
                                 ) {
@@ -204,7 +211,7 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         if (differenceThreshold < 100f) {
-                                            differenceThreshold = (differenceThreshold + 5f).coerceIn(0f, 100f)
+                                            differenceThreshold = (differenceThreshold + 1f).coerceIn(0f, 100f)
                                         }
                                     }
                                 ) {
@@ -314,22 +321,34 @@ class MainActivity : ComponentActivity() {
 
                                         mainViewModel.processAndSendImageWithPrompt(photoBytes, aiPrompt) { analysisSuccess, responseMsg ->
                                             runOnUiThread {
-                                                if (responseMsg?.startsWith("SKIPPED_NO:") == true) {
-                                                    val actualAiResponse = responseMsg.substringAfter("SKIPPED_NO:")
-                                                    val skippedMessage = "Отправка пропущена. Ответ ИИ: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "Нет ответа"}"
-                                                    Toast.makeText(applicationContext, skippedMessage, Toast.LENGTH_LONG).show()
-                                                    Log.i("MainActivity", "Telegram send skipped due to AI response. AI: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "No response"}")
-                                                    comparisonMessage = skippedMessage
-                                                } else if (analysisSuccess) {
-                                                    val successMessage = "Фото отправлено! Ответ ИИ: ${responseMsg ?: "Нет ответа"}"
-                                                    Toast.makeText(applicationContext, successMessage, Toast.LENGTH_LONG).show()
-                                                    Log.d("MainActivity", "Photo sent successfully. AI response: ${responseMsg ?: "No response"}")
-                                                    comparisonMessage = successMessage
-                                                } else {
-                                                    val errorText = "Ошибка отправки фото или анализа ИИ: ${responseMsg ?: "Неизвестная ошибка"}"
-                                                    Toast.makeText(applicationContext, errorText, Toast.LENGTH_LONG).show()
-                                                    Log.e("MainActivity", errorText)
-                                                    comparisonMessage = errorText
+                                                when {
+                                                    responseMsg?.startsWith("STOP_MONITORING:") == true -> {
+                                                        val actualAiResponse = responseMsg.substringAfter("STOP_MONITORING:")
+                                                        val stopMessage = "Достигнут лимит сообщений. Ответ ИИ: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "Нет ответа"}"
+                                                        Toast.makeText(applicationContext, stopMessage, Toast.LENGTH_LONG).show()
+                                                        Log.i("MainActivity", "Monitoring stopped due to message limit. AI: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "No response"}")
+                                                        comparisonMessage = stopMessage
+                                                        stopImageMonitoring()
+                                                    }
+                                                    responseMsg?.startsWith("SKIPPED_NO:") == true -> {
+                                                        val actualAiResponse = responseMsg.substringAfter("SKIPPED_NO:")
+                                                        val skippedMessage = "Отправка пропущена. Ответ ИИ: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "Нет ответа"}"
+                                                        Toast.makeText(applicationContext, skippedMessage, Toast.LENGTH_LONG).show()
+                                                        Log.i("MainActivity", "Telegram send skipped due to AI response. AI: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "No response"}")
+                                                        comparisonMessage = skippedMessage
+                                                    }
+                                                    analysisSuccess -> {
+                                                        val successMessage = "Фото отправлено! Ответ ИИ: ${responseMsg ?: "Нет ответа"}"
+                                                        Toast.makeText(applicationContext, successMessage, Toast.LENGTH_LONG).show()
+                                                        Log.d("MainActivity", "Photo sent successfully. AI response: ${responseMsg ?: "No response"}")
+                                                        comparisonMessage = successMessage
+                                                    }
+                                                    else -> {
+                                                        val errorText = "Ошибка отправки фото или анализа ИИ: ${responseMsg ?: "Неизвестная ошибка"}"
+                                                        Toast.makeText(applicationContext, errorText, Toast.LENGTH_LONG).show()
+                                                        Log.e("MainActivity", errorText)
+                                                        comparisonMessage = errorText
+                                                    }
                                                 }
                                             }
                                         }
