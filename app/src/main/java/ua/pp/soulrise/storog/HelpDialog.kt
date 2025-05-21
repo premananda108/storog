@@ -1,10 +1,14 @@
 package ua.pp.soulrise.storog
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.SpanStyle
@@ -20,8 +24,9 @@ fun HelpDialog(
         onDismissRequest = onDismiss,
         title = { Text("Справка") },
         text = {
-            val uriHandler = LocalUriHandler.current
-            val annotatedString = buildAnnotatedString {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                val uriHandler = LocalUriHandler.current
+                val annotatedString = buildAnnotatedString {
                 append("Приложение для мониторинга изменений через камеру:\n\n")
                 append("1. Узнайте ваш Telegram User ID, запустив бота ")
                 pushStringAnnotation(tag = "URL", annotation = "https://t.me/userinfobot")
@@ -42,15 +47,16 @@ fun HelpDialog(
                 append("6. При обнаружении изменений фото будет отправлено ИИ для анализа\n")
                 append("7. Если ИИ обнаружит нужный объект - будет отправленно сообщение в Telegram\n")
             }
-            ClickableText(
-                text = annotatedString,
-                onClick = { offset ->
-                    annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                        .firstOrNull()?.let {
-                            uriHandler.openUri(it.item)
-                        }
-                }
-            )
+                ClickableText(
+                    text = annotatedString,
+                    onClick = { offset ->
+                        annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                            .firstOrNull()?.let {
+                                uriHandler.openUri(it.item)
+                            }
+                    }
+                )
+            }
         },
         confirmButton = {
             Button(onClick = onDismiss) {

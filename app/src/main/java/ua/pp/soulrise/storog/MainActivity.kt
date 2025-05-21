@@ -309,7 +309,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                     Log.d("MainActivity", message)
 
-                                    if (difference > differenceThreshold.toDouble()) {
+                                    if (differenceThreshold < 0.01f || difference > differenceThreshold.toDouble()) {
                                         val originalAlertMessage = "Обнаружено значительное изменение: ${String.format("%.2f", difference)}%"
                                         val alertMessageWithPhotoSendAttempt = "$originalAlertMessage. Попытка отправки фото."
                                         runOnUiThread {
