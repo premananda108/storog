@@ -96,7 +96,7 @@ fun CameraScreen(
             factory = { previewView },
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.55f)
+                .fillMaxHeight(0.33f)
         )
     }
 }

@@ -45,6 +45,8 @@ import kotlinx.coroutines.launch
 import ua.pp.soulrise.storog.ui.theme.StorogTheme
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 
 class MainActivity : ComponentActivity() {
 
@@ -108,9 +110,11 @@ class MainActivity : ComponentActivity() {
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         checkCameraPermission()
 
+        // Замените содержимое setContent в onCreate на следующий код:
+
         setContent {
             StorogTheme {
-                val currentContext = LocalContext.current // Получаем контекст для использования в topBar
+                val currentContext = LocalContext.current
 
                 Scaffold(
                     modifier = Modifier
@@ -141,112 +145,126 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { innerPadding ->
-                    Column(
-                        modifier = Modifier
-                            .padding(innerPadding) // Применяем innerPadding от Scaffold
-                            .fillMaxSize()
-                    ) {
+                    if (showHelpDialog) {
+                        HelpDialog(onDismiss = { showHelpDialog = false })
+                    }
 
-                        if (showHelpDialog) {
-                            // Вызов вашей Composable функции HelpDialog, определенной в другом файле
-                            HelpDialog(onDismiss = { showHelpDialog = false })
-                        }
-
-                        if (hasCameraPermission) {
-                            Box(modifier = Modifier.weight(1f)) { // Этот Box для CameraScreen
-                                // Вызов вашей Composable функции CameraScreen, определенной в другом файле
+                    if (hasCameraPermission) {
+                        // Используем Column для вертикального размещения элементов
+                        Column(
+                            modifier = Modifier
+                                .padding(innerPadding)
+                                .fillMaxSize()
+                        ) {
+                            // Камера занимает часть экрана (не весь)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(0.4f) // 40% экрана для камеры
+                            ) {
                                 CameraScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     imageCapture = imageCapture
                                 )
                             }
-                            Row(
-                                modifier = Modifier
-                                    .padding(16.dp)
-                                    .fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                Button(
-                                    onClick = {
-                                        if (isMonitoringActive) {
-                                            stopImageMonitoring()
-                                        } else {
-                                            startImageMonitoring()
-                                        }
-                                    }
-                                ) {
-                                    Text(if (isMonitoringActive) "Стоп" else "Старт")
-                                }
-                            }
-                            Text(
-                                text = "Порог срабатывания",
+
+                            // UI элементы занимают оставшуюся часть экрана
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                                textAlign = TextAlign.Center
-                            )
-                            Row(
-                                modifier = Modifier
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    .fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .weight(0.6f) // 60% экрана для UI
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Button(
-                                    onClick = {
-                                        if (differenceThreshold > 0f) {
-                                            differenceThreshold = (differenceThreshold - 1f).coerceIn(0f, 100f)
-                                        }
-                                    }
+                                // Кнопка старт/стоп
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center
                                 ) {
-                                    Text("-")
+                                    Button(
+                                        onClick = {
+                                            if (isMonitoringActive) {
+                                                stopImageMonitoring()
+                                            } else {
+                                                startImageMonitoring()
+                                            }
+                                        }
+                                    ) {
+                                        Text(if (isMonitoringActive) "Стоп" else "Старт")
+                                    }
                                 }
 
+                                // Настройка порога срабатывания
                                 Text(
-                                    text = "${differenceThreshold.toInt()}%",
-                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    text = "Порог срабатывания",
+                                    modifier = Modifier.fillMaxWidth(),
                                     textAlign = TextAlign.Center
                                 )
 
-                                Button(
-                                    onClick = {
-                                        if (differenceThreshold < 100f) {
-                                            differenceThreshold = (differenceThreshold + 1f).coerceIn(0f, 100f)
-                                        }
-                                    }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("+")
+                                    Button(
+                                        onClick = {
+                                            if (differenceThreshold > 0f) {
+                                                differenceThreshold = (differenceThreshold - 1f).coerceIn(0f, 100f)
+                                            }
+                                        }
+                                    ) {
+                                        Text("-")
+                                    }
+
+                                    Text(
+                                        text = "${differenceThreshold.toInt()}%",
+                                        modifier = Modifier.padding(horizontal = 16.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+
+                                    Button(
+                                        onClick = {
+                                            if (differenceThreshold < 100f) {
+                                                differenceThreshold = (differenceThreshold + 1f).coerceIn(0f, 100f)
+                                            }
+                                        }
+                                    ) {
+                                        Text("+")
+                                    }
                                 }
-                            }
-                            Row(
-                                modifier = Modifier
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    .fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+
+                                // Поле для промпта ИИ
                                 TextField(
                                     value = aiPrompt,
                                     onValueChange = { aiPrompt = it },
                                     label = { Text("Промпт для ИИ") },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = false
+                                    singleLine = false,
+                                    maxLines = 3 // Ограничиваем высоту поля
+                                )
+
+                                // Сообщение о сравнении - используем скроллируемый текст
+                                val scrollState = rememberScrollState()
+                                Text(
+                                    text = comparisonMessage,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f) // Занимает оставшееся место
+                                        .verticalScroll(scrollState)
+                                        .padding(8.dp),
+                                    textAlign = TextAlign.Start,
+                                    style = MaterialTheme.typography.bodySmall
                                 )
                             }
-
-                            Text(
-                                text = comparisonMessage,
-                                modifier = Modifier
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    .fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier.fillMaxSize(), // innerPadding уже применен к родительскому Column
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("Разрешение на использование камеры не предоставлено.")
-                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .padding(innerPadding)
+                                .fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Разрешение на использование камеры не предоставлено.")
                         }
                     }
                 }
