@@ -1,3 +1,5 @@
+[English](README.md) | [Русский](README_ru.md)
+
 # Storog: AI-Powered Visual Monitoring Android App
 
 Storog is an Android application that transforms your device into a smart visual monitoring system. It uses the device's camera to detect changes or movement in a designated area. When a significant change is detected, Storog leverages the Gemini AI model to analyze the scene and can send notifications, including an image and the AI's analysis, to a specified Telegram chat.
@@ -97,7 +99,7 @@ To use the AI analysis and Telegram notification features, you need to configure
 
 1.  **Clone the Repository:**
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/premananda108/storog.git
     cd <repository-directory>
     ```
 2.  **Configure API Keys:** Ensure you have set up the `my_config.properties` file in `app/src/main/assets/` as described in the "Setup and Configuration" section.
