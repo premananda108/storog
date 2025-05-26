@@ -111,3 +111,7 @@ To use the AI analysis and Telegram notification features, you need to configure
         *   For a debug APK: `./gradlew assembleDebug`
         *   For a release APK (requires release signing configuration): `./gradlew assembleRelease`
 6.  **Run:** Deploy the app to an Android device or emulator.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
