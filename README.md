@@ -35,7 +35,7 @@ To use the AI analysis and Telegram notification features, you need to configure
     *   BotFather will provide you with an API token.
 3.  **Telegram Chat ID:**
     *   This is the ID of the chat, group, or channel where you want the bot to send notifications.
-    *   You can get your personal Chat ID by sending `/myid` to a bot like `@getmyid_bot` on Telegram. For groups or channels, other methods might be needed (e.g., temporarily adding a bot that reveals chat IDs).
+    *   You can get your personal Chat ID by running [userinfobot](https://t.me/userinfobot) on Telegram. For groups or channels, other methods might be needed (e.g., temporarily adding a bot that reveals chat IDs).
 
 **Configuration File:**
 
