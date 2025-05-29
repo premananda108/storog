@@ -52,7 +52,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Функция для отправки фото с AI промптом
+    // Function to send photo with AI prompt
     fun processAndSendImageWithPrompt(photoBytes: ByteArray, prompt: String, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             if (!::telegramSender.isInitialized || !::geminiService.isInitialized) {
@@ -86,7 +86,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     stringBuilder.append(chunk)
                 }
                 geminiResponseText = stringBuilder.toString()
-                if (geminiResponseText.isNotBlank() && !geminiResponseText.startsWith("Ошибка:")) {
+                if (geminiResponseText.isNotBlank() && !geminiResponseText.startsWith("Error:")) {
                     analysisSuccess = true
                     android.util.Log.i("MainViewModel", "Gemini analysis successful: $geminiResponseText")
                 } else {

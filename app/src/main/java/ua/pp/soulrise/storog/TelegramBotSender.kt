@@ -8,17 +8,14 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.http.content.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
 class TelegramBotSender(
-    private val botToken: String, // Передавайте токен при создании экземпляра
-    private val defaultChatId: String // Передавайте chat_id по умолчанию
+    private val botToken: String, // Pass the token when creating an instance
+    private val defaultChatId: String // Pass the default chat_id
 ) {
 
     private val client = HttpClient(CIO) {
@@ -29,14 +26,14 @@ class TelegramBotSender(
                 ignoreUnknownKeys = true
             })
         }
-        // Можно добавить таймауты и другую конфигурацию клиента
+        // You can add timeouts and other client configurations
         // engine {
-        //     requestTimeout = 10_000 // 10 секунд
+        //     requestTimeout = 10_000 // 10 seconds
         // }
     }
 
     suspend fun sendMessage(messageText: String, chatId: String = defaultChatId): Boolean {
-        return withContext(Dispatchers.IO) { // Выполняем сетевой запрос в фоновом потоке
+        return withContext(Dispatchers.IO) { // Execute the network request on a background thread
             try {
                 val url = "https://api.telegram.org/bot$botToken/sendMessage"
                 Log.d("TelegramBotSender", "Sending message to $chatId: $messageText")
@@ -46,8 +43,8 @@ class TelegramBotSender(
                     setBody(mapOf(
                         "chat_id" to chatId,
                         "text" to messageText,
-                        // "parse_mode" to "MarkdownV2" // Опционально, для форматирования
-                        // "disable_web_page_preview" to true // Опционально
+                        // "parse_mode" to "MarkdownV2" // Optional, for formatting
+                        // "disable_web_page_preview" to true // Optional
                     ))
                 }
 
@@ -66,7 +63,7 @@ class TelegramBotSender(
     }
 
     suspend fun sendPhoto(photoBytes: ByteArray, chatId: String = defaultChatId, caption: String? = null): Boolean {
-        return withContext(Dispatchers.IO) { // Выполняем сетевой запрос в фоновом потоке
+        return withContext(Dispatchers.IO) { // Execute the network request on a background thread
             try {
                 val url = "https://api.telegram.org/bot$botToken/sendPhoto"
                 Log.d("TelegramBotSender", "Sending photo to $chatId, caption: $caption")
@@ -79,7 +76,7 @@ class TelegramBotSender(
                                 append("caption", caption)
                             }
                             append("photo", photoBytes, Headers.build {
-                                append(HttpHeaders.ContentType, "image/jpeg") // или image/png, в зависимости от формата
+                                append(HttpHeaders.ContentType, "image/jpeg") // or image/png, depending on the format
                                 append(HttpHeaders.ContentDisposition, "filename=\"photo.jpg\"")
                             })
                         }
@@ -100,7 +97,7 @@ class TelegramBotSender(
         }
     }
 
-    // Вызовите этот метод, когда сервис больше не нужен (например, в onCleared ViewModel)
+    // Call this method when the service is no longer needed (e.g., in ViewModel's onCleared)
     fun close() {
         client.close()
         Log.d("TelegramBotSender", "HttpClient closed.")
