@@ -2,12 +2,10 @@ package ua.pp.soulrise.storog
 
 import android.app.Application
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.ai.client.generativeai.type.Content
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.util.Properties
 
@@ -84,11 +82,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 val stringBuilder = StringBuilder()
-                responseFlow.collect { (chunk, isFinal) ->
+                responseFlow.collect { (chunk, _) -> // isFinal is not used
                     stringBuilder.append(chunk)
-                    if (isFinal) {
-                        // The isFinal flag can be processed if needed
-                    }
                 }
                 geminiResponseText = stringBuilder.toString()
                 if (geminiResponseText.isNotBlank() && !geminiResponseText.startsWith("Ошибка:")) {
@@ -105,7 +100,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             // Check the response from Gemini before sending
-            if (analysisSuccess && geminiResponseText?.startsWith("Нет", ignoreCase = true) == true) {
+            if (analysisSuccess && (geminiResponseText.startsWith(
+                    "No",
+                    ignoreCase = true
+                ) == true)
+            ) {
                 android.util.Log.i("MainViewModel", "Sending to Telegram skipped because AI response starts with 'No'. Response: $geminiResponseText")
                 // Report analysis success, but that sending was skipped.
                 // Pass a special message or flag if necessary for the UI.
