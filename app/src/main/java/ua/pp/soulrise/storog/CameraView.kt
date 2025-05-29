@@ -2,7 +2,7 @@ package ua.pp.soulrise.storog
 
 import android.util.Log
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture // ImageCapture передается, но не используется напрямую в этой версии CameraScreen для Preview
+import androidx.camera.core.ImageCapture // ImageCapture is passed but not used directly in this version of CameraScreen for Preview
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -42,14 +42,14 @@ fun CameraScreen(
         }
     }
 
-    // LaunchedEffect для асинхронной инициализации ProcessCameraProvider и привязки use-кейсов камеры.
-    // Эффект перезапустится, если lifecycleOwner или imageCapture изменятся (хотя imageCapture обычно стабилен).
+    // LaunchedEffect for asynchronous initialization of ProcessCameraProvider and binding of camera use cases.
+    // The effect will restart if lifecycleOwner or imageCapture changes (although imageCapture is usually stable).
     LaunchedEffect(lifecycleOwner, imageCapture, previewView) {
         try {
             Log.d("CameraScreen", "LaunchedEffect: Attempting to get CameraProvider.")
             val cameraProvider = ProcessCameraProvider.getInstance(context).await()
             Log.d("CameraScreen", "LaunchedEffect: CameraProvider obtained. Unbinding all.")
-            cameraProvider.unbindAll() // Отвязываем все предыдущие use-кейсы перед новой привязкой
+            cameraProvider.unbindAll() // Unbind all previous use cases before new binding
 
             val previewUseCase = Preview.Builder().build().also {
                 Log.d("CameraScreen", "LaunchedEffect: Setting SurfaceProvider for Preview.")
@@ -62,8 +62,8 @@ fun CameraScreen(
             cameraProvider.bindToLifecycle(
                 lifecycleOwner,
                 cameraSelector,
-                previewUseCase, // Use-кейс для превью
-                imageCapture    // Переданный ImageCapture (для фото или анализа в сервисе)
+                previewUseCase, // Use case for preview
+                imageCapture    // Passed ImageCapture (for photo or analysis in the service)
             )
             Log.d("CameraScreen", "LaunchedEffect: Camera bound successfully to lifecycle.")
         } catch (e: Exception) {
@@ -71,13 +71,13 @@ fun CameraScreen(
         }
     }
 
-    // DisposableEffect для отвязки камеры при выходе из композиции (когда Composable удаляется с экрана).
-    // Ключ Unit означает, что onDispose выполнится только один раз при уничтожении эффекта.
+    // DisposableEffect to unbind the camera when exiting the composition (when the Composable is removed from the screen).
+    // The Unit key means that onDispose will only be executed once when the effect is destroyed.
     DisposableEffect(Unit) {
         onDispose {
             Log.d("CameraScreen", "DisposableEffect: Unbinding camera onDispose.")
-            // Получаем инстанс провайдера снова, чтобы отвязать.
-            // Это распространенный паттерн, если сам cameraProvider не сохранен в remember {}.
+            // Get the provider instance again to unbind.
+            // This is a common pattern if cameraProvider itself is not saved in remember {}.
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             cameraProviderFuture.addListener({
                 try {
@@ -102,15 +102,15 @@ fun CameraScreen(
 }
 
 /**
- * Вспомогательная suspend-функция для преобразования ListenableFuture в результат корутины.
- * Позволяет использовать .await() на ListenableFuture в suspend функциях.
+ * Helper suspend function to convert ListenableFuture to a coroutine result.
+ * Allows using .await() on ListenableFuture in suspend functions.
  */
 suspend fun <T> ListenableFuture<T>.await(): T =
     suspendCancellableCoroutine { continuation ->
         addListener(
             {
                 try {
-                    if (continuation.isActive) { // Проверяем, активна ли корутина
+                    if (continuation.isActive) { // Check if the coroutine is active
                         continuation.resume(get())
                     }
                 } catch (e: Exception) {
@@ -119,16 +119,16 @@ suspend fun <T> ListenableFuture<T>.await(): T =
                     }
                 }
             },
-            // Лучше использовать executor, который не является основным потоком для get(),
-            // но для addListener и resume/resumeWithException основной поток безопасен.
-            // ContextCompat.getMainExecutor(context) здесь может быть не доступен напрямую.
-            // Можно передать executor или использовать Dispatchers.IO для get() если он блокирующий.
-            // Однако, ProcessCameraProvider.getInstance() обычно выполняется быстро.
-            // Для простоты оставим так, но в сложных случаях можно использовать кастомный executor.
-            Runnable::run // Простой прямой вызов слушателя, или ContextCompat.getMainExecutor(applicationContext)
+            // It is better to use an executor that is not the main thread for get(),
+            // but for addListener and resume/resumeWithException the main thread is safe.
+            // ContextCompat.getMainExecutor(context) may not be directly available here.
+            // You can pass an executor or use Dispatchers.IO for get() if it is blocking.
+            // However, ProcessCameraProvider.getInstance() usually executes quickly.
+            // For simplicity, we'll leave it like this, but in complex cases, a custom executor can be used.
+            Runnable::run // Simple direct call to the listener, or ContextCompat.getMainExecutor(applicationContext)
         )
 
         continuation.invokeOnCancellation {
-            cancel(false) // Отменяем ListenableFuture, если корутина отменена
+            cancel(false) // Cancel ListenableFuture if the coroutine is cancelled
         }
     }

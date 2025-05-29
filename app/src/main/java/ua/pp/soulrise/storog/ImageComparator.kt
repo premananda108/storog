@@ -1,4 +1,4 @@
-package ua.pp.soulrise.storog // Ваше имя пакета
+package ua.pp.soulrise.storog // Your package name
 
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -14,22 +14,22 @@ object ImageComparator {
     private const val TAG = "ImageComparator"
 
     /**
-     * Сравнивает два изображения и возвращает процент различия между ними.
+     * Compares two images and returns the percentage difference between them.
      *
-     * @param bitmap1 Первое изображение.
-     * @param bitmap2 Второе изображение.
-     * @param resizeWidth Ширина, до которой будут уменьшены изображения перед сравнением (для скорости и устойчивости).
-     *                    Если null, используется оригинальный размер (не рекомендуется для больших изображений).
-     * @param convertToGrayscale Преобразовывать ли изображения в оттенки серого перед сравнением.
-     * @return Процент различия (от 0.0 до 100.0).
-     *         Возвращает -1.0 при ошибке (например, разные размеры после ресайза, если он не применялся).
+     * @param bitmap1 First image.
+     * @param bitmap2 Second image.
+     * @param resizeWidth Width to which images will be reduced before comparison (for speed and stability).
+     *                    If null, original size is used (not recommended for large images).
+     * @param convertToGrayscale Whether to convert images to grayscale before comparison.
+     * @return Percentage difference (from 0.0 to 100.0).
+     *         Returns -1.0 on error (e.g., different sizes after resize, if it was not applied).
      */
     suspend fun calculateDifferencePercentage(
         bitmap1: Bitmap,
         bitmap2: Bitmap,
-        resizeWidth: Int? = 100, // Уменьшаем для скорости, например, до ширины 100px
+        resizeWidth: Int? = 100, // Reduce for speed, e.g., to a width of 100px
         convertToGrayscale: Boolean = true
-    ): Double = withContext(Dispatchers.Default) { // Выполняем на вычислительном потоке
+    ): Double = withContext(Dispatchers.Default) { // Execute on a computation thread
         try {
             val processedBitmap1: Bitmap
             val processedBitmap2: Bitmap
@@ -51,7 +51,7 @@ object ImageComparator {
                 Log.e(TAG, "Processed bitmaps have different dimensions after potential resize. " +
                         "B1: ${processedBitmap1.width}x${processedBitmap1.height}, " +
                         "B2: ${processedBitmap2.width}x${processedBitmap2.height}")
-                return@withContext -1.0 // Ошибка: разные размеры
+                return@withContext -1.0 // Error: different sizes
             }
 
             val finalBitmap1 = if (convertToGrayscale) convertToGrayscale(processedBitmap1) else processedBitmap1
@@ -74,12 +74,12 @@ object ImageComparator {
                 val pixel2 = pixels2[i]
 
                 if (convertToGrayscale) {
-                    // В оттенках серого, красный, зеленый и синий компоненты равны
-                    val gray1 = Color.red(pixel1) // или green, или blue
+                    // In grayscale, red, green, and blue components are equal
+                    val gray1 = Color.red(pixel1) // or green, or blue
                     val gray2 = Color.red(pixel2)
                     diffSum += abs(gray1 - gray2)
                 } else {
-                    // Сравнение по RGB компонентам
+                    // Comparison by RGB components
                     val r1 = Color.red(pixel1)
                     val g1 = Color.green(pixel1)
                     val b1 = Color.blue(pixel1)
@@ -94,16 +94,16 @@ object ImageComparator {
                 }
             }
 
-            // Нормализуем разницу
-            // Для оттенков серого максимальная разница на пиксель - 255
-            // Для RGB максимальная разница на пиксель - 255 * 3
+            // Normalize the difference
+            // For grayscale, the maximum difference per pixel is 255
+            // For RGB, the maximum difference per pixel is 255 * 3
             val maxDiffPerPixel = if (convertToGrayscale) 255.0 else (255.0 * 3.0)
             val maxTotalDiff = maxDiffPerPixel * totalPixels
             if (maxTotalDiff == 0.0) return@withContext 0.0
 
             val differencePercentage = (diffSum.toDouble() / maxTotalDiff) * 100.0
 
-            // Освобождаем память, если создавали новые битмапы
+            // Free memory if new bitmaps were created
             if (resizeWidth != null) {
                 if (!processedBitmap1.isRecycled) processedBitmap1.recycle()
                 if (!processedBitmap2.isRecycled) processedBitmap2.recycle()
@@ -117,17 +117,17 @@ object ImageComparator {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error calculating image difference", e)
-            return@withContext -1.0 // Ошибка
+            return@withContext -1.0 // Error
         }
     }
 
     /**
-     * Преобразует Bitmap в оттенки серого.
+     * Converts Bitmap to grayscale.
      */
     private fun convertToGrayscale(src: Bitmap): Bitmap {
         val width = src.width
         val height = src.height
-        val bmpGrayscale = createBitmap(width, height) // Используем ARGB_8888 для совместимости с getPixels
+        val bmpGrayscale = createBitmap(width, height) // Use ARGB_8888 for compatibility with getPixels
 
         val pixels = IntArray(width * height)
         src.getPixels(pixels, 0, width, 0, 0, width, height)
@@ -137,9 +137,9 @@ object ImageComparator {
             val r = Color.red(color)
             val g = Color.green(color)
             val b = Color.blue(color)
-            // Стандартный коэффициент для преобразования в оттенки серого (Luminosity method)
+            // Standard coefficient for grayscale conversion (Luminosity method)
             val gray = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
-            pixels[i] = Color.rgb(gray, gray, gray) // Alpha остается прежним (из оригинального пикселя)
+            pixels[i] = Color.rgb(gray, gray, gray) // Alpha remains the same (from the original pixel)
         }
         bmpGrayscale.setPixels(pixels, 0, width, 0, 0, width, height)
         return bmpGrayscale

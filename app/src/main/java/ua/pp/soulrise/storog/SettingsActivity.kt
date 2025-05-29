@@ -38,7 +38,7 @@ fun SettingsScreen() {
         context.getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
     }
 
-    // Загружаем сохраненный chat_id при первом запуске
+    // Load saved chat_id on first launch
     LaunchedEffect(Unit) {
         chatId = TextFieldValue(sharedPreferences.getString("TARGET_CHAT_ID", "") ?: "")
     }
@@ -49,7 +49,7 @@ fun SettingsScreen() {
             .padding(16.dp)
     ) {
         Text(
-            text = "Настройки",
+            text = "Settings",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
@@ -57,7 +57,7 @@ fun SettingsScreen() {
         OutlinedTextField(
             value = chatId,
             onValueChange = { chatId = it },
-            label = { Text("ID чата Telegram") },
+            label = { Text("Telegram Chat ID") },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
@@ -65,17 +65,17 @@ fun SettingsScreen() {
 
         Button(
             onClick = {
-                // Сохраняем chat_id
+                // Save chat_id
                 sharedPreferences.edit().apply {
                     putString("TARGET_CHAT_ID", chatId.text)
                     apply()
                 }
-                // Закрываем активити
+                // Close activity
                 (context as? ComponentActivity)?.finish()
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Сохранить")
+            Text("Save")
         }
     }
 }

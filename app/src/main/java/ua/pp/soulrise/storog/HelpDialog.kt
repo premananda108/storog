@@ -22,30 +22,30 @@ fun HelpDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Справка") },
+        title = { Text("Help") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 val uriHandler = LocalUriHandler.current
                 val annotatedString = buildAnnotatedString {
-                append("Приложение для мониторинга изменений через камеру:\n\n")
-                append("1. Узнайте ваш Telegram User ID, запустив бота ")
+                append("Application for monitoring changes via camera:\n\n")
+                append("1. Find out your Telegram User ID by launching the bot ")
                 pushStringAnnotation(tag = "URL", annotation = "https://t.me/userinfobot")
                 withStyle(style = SpanStyle(color = Color.Blue, textDecoration = TextDecoration.Underline)) {
                     append("https://t.me/userinfobot")
                 }
                 pop()
-                append("\nи введите его в настройках приложения.\n")
-                append("2. Запустите бота для мониторинга ")
+                append("\nand enter it in the application settings.\n")
+                append("2. Launch the bot for monitoring ")
                 pushStringAnnotation(tag = "URL", annotation = "https://t.me/sto_rog_bot")
                 withStyle(style = SpanStyle(color = Color.Blue, textDecoration = TextDecoration.Underline)) {
                     append("https://t.me/sto_rog_bot")
                 }
                 pop()
-                append("\n3. Установите порог срабатывания (в процентах) кнопками '+' и '-'. Система среагирует, если различие между текущим и начальным кадром превысит это значение. Меньшее значение означает более высокую чувствительность к изменениям\n")
-                append("4. Введите запрос для ИИ-анализа изображений\n")
-                append("5. Нажмите 'Старт' для начала мониторинга\n")
-                append("6. При обнаружении изменений фото будет отправлено ИИ для анализа\n")
-                append("7. Если ИИ обнаружит нужный объект - будет отправленно сообщение в Telegram\n")
+                append("\n3. Set the trigger threshold (in percent) using the '+' and '-' buttons. The system will react if the difference between the current and initial frame exceeds this value. A smaller value means higher sensitivity to changes.\n")
+                append("4. Enter a query for AI image analysis\n")
+                append("5. Press 'Start' to begin monitoring\n")
+                append("6. When changes are detected, the photo will be sent to AI for analysis\n")
+                append("7. If the AI detects the desired object, a message will be sent to Telegram\n")
             }
                 ClickableText(
                     text = annotatedString,
@@ -60,7 +60,7 @@ fun HelpDialog(
         },
         confirmButton = {
             Button(onClick = onDismiss) {
-                Text("Закрыть")
+                Text("Close")
             }
         }
     )

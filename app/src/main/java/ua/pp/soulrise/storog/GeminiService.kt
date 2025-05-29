@@ -19,12 +19,12 @@ import kotlinx.coroutines.withContext
 
 class GeminiService(
     private val apiKey: String,
-    private val defaultModelName: String = "gemini-1.5-flash-latest" // Можно задать значение по умолчанию
+    private val defaultModelName: String = "gemini-1.5-flash-latest" // Default value can be set
 ) {
 
-    // Конфигурация генерации, аналог generate_content_config
+    // Generation configuration, analogous to generate_content_config
     private val generationConfig = GenerationConfig.Builder().apply {
-        // responseMimeType = "text/plain" // SDK обычно сам определяет или использует text/plain
+        // responseMimeType = "text/plain" // SDK usually determines this itself or uses text/plain
         // temperature = 0.9f
         // topK = 1
         // topP = 1f
@@ -37,30 +37,30 @@ class GeminiService(
                 "GeminiService",
                 "API Key provided to GeminiService is empty. Calls will likely fail."
             )
-            // Можно выбросить IllegalArgumentException, если пустой ключ недопустим
+            // IllegalArgumentException can be thrown if an empty key is not allowed
             // throw IllegalArgumentException("API Key cannot be empty.")
         }
         Log.i("GeminiService", "GeminiService initialized with model: $defaultModelName")
     }
 
     /**
-     * Генерирует ответ от LLM в потоковом режиме.
+     * Generates a response from LLM in streaming mode.
      *
-     * @param userPrompt Текстовый запрос от пользователя.
-     * @param imageBitmap Опциональное изображение для мультимодального запроса.
-     * @param chatHistory Текущая история чата (список Content объектов).
-     * @param modelNameOverride Имя используемой модели, если нужно переопределить defaultModelName.
-     * @return Flow<Pair<String, Boolean>> Поток текстовых фрагментов ответа.
-     *         Также обновляет chatHistory, добавляя в него запрос пользователя и полный ответ модели.
+     * @param userPrompt Text query from the user.
+     * @param imageBitmap Optional image for a multimodal query.
+     * @param chatHistory Current chat history (list of Content objects).
+     * @param modelNameOverride Name of the model to use, if defaultModelName needs to be overridden.
+     * @return Flow<Pair<String, Boolean>> Stream of text fragments of the response.
+     *         Also updates chatHistory by adding the user's request and the model's full response to it.
      */
     suspend fun generateChatResponseStreaming(
         userPrompt: String,
         imageBitmap: Bitmap? = null,
-        chatHistory: MutableList<Content>, // Передаем изменяемый список для обновления
+        chatHistory: MutableList<Content>, // Pass a mutable list for update
         modelNameOverride: String? = null
     ): Flow<Pair<String, Boolean>> { // Pair<chunkText, isFinalChunk>
         if (apiKey.isEmpty()) {
-            // Эта проверка уже есть в init, но дублирование здесь для конкретного вызова не помешает
+            // This check is already in init, but duplicating it here for a specific call won't hurt
             Log.e("GeminiService", "API Key is missing.")
             throw IllegalArgumentException("API Key is missing. Cannot make API calls.")
         }
@@ -71,16 +71,16 @@ class GeminiService(
             modelName = currentModelName,
             apiKey = apiKey,
             generationConfig = generationConfig
-            // safetySettings = ... // Можно настроить параметры безопасности
+            // safetySettings = ... // Safety settings can be configured
         )
 
-        // Создаем контент для текущего запроса пользователя
+        // Create content for the current user request
         val userInputContent = content(role = "user") {
-            imageBitmap?.let { image(it) } // Добавляем изображение, если оно есть
+            imageBitmap?.let { image(it) } // Add image if it exists
             text(userPrompt)
         }
 
-        // Формируем историю для текущего вызова API
+        // Form history for the current API call
         val currentCallHistory = chatHistory.toList() + userInputContent
 
         Log.d(
@@ -102,11 +102,11 @@ class GeminiService(
                 Log.e("GeminiService", "Error generating content stream for $currentModelName", e)
                 isFinished = true
                 if (e is InvalidStateException && e.message?.contains("API key not valid") == true) {
-                    emit(Pair("Ошибка: Неверный API ключ. Проверьте настройки.", true))
+                    emit(Pair("Error: Invalid API key. Check settings.", true))
                 } else if (e.message?.contains("RESOURCE_EXHAUSTED") == true) {
-                    emit(Pair("Ошибка: Квота API исчерпана. Попробуйте позже.", true))
+                    emit(Pair("Error: API quota exhausted. Try again later.", true))
                 } else {
-                    emit(Pair("Ошибка: ${e.localizedMessage ?: "Неизвестная ошибка"}", true))
+                    emit(Pair("Error: ${e.localizedMessage ?: "Unknown error"}", true))
                 }
             }
             .onCompletion { cause ->

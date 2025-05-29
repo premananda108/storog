@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
     private var comparisonMessage by mutableStateOf("")
     private val comparisonIntervalMillis = 5000L
     private var differenceThreshold by mutableStateOf(5.0f)
-    private var aiPrompt by mutableStateOf("есть ли на изображении кошка?")
+    private var aiPrompt by mutableStateOf("is there a cat in the picture?")
     private var showHelpDialog by mutableStateOf(false)
 
     private fun saveSettings() {
@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
     private fun loadSettings() {
         val sharedPreferences = getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
         differenceThreshold = sharedPreferences.getFloat("differenceThreshold", 5.0f)
-        aiPrompt = sharedPreferences.getString("aiPrompt", "есть ли на изображении кошка?") ?: "есть ли на изображении кошка?"
+        aiPrompt = sharedPreferences.getString("aiPrompt", "is there a cat in the picture?") ?: "is there a cat in the picture?"
     }
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -98,11 +98,11 @@ class MainActivity : ComponentActivity() {
         imageCapture = ImageCapture.Builder().build()
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        mainViewModel.onSendAlertButtonClicked("Приложение запущено") { success ->
+        mainViewModel.onSendAlertButtonClicked("Application started") { success ->
             if (success) {
-                Log.i("MainActivity", "Сообщение о запуске отправлено в Telegram.")
+                Log.i("MainActivity", "Startup message sent to Telegram.")
             } else {
-                Log.e("MainActivity", "Ошибка отправки сообщения о запуске в Telegram.")
+                Log.e("MainActivity", "Error sending startup message to Telegram.")
             }
         }
 
@@ -110,7 +110,7 @@ class MainActivity : ComponentActivity() {
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         checkCameraPermission()
 
-        // Замените содержимое setContent в onCreate на следующий код:
+        // Replace the content of setContent in onCreate with the following code:
 
         setContent {
             StorogTheme {
@@ -136,10 +136,10 @@ class MainActivity : ComponentActivity() {
                                     val intent = Intent(currentContext, SettingsActivity::class.java)
                                     currentContext.startActivity(intent)
                                 }) {
-                                    Text("Настройки")
+                                    Text("Settings")
                                 }
                                 Button(onClick = { showHelpDialog = true }) {
-                                    Text("Справка")
+                                    Text("Help")
                                 }
                             }
                         }
@@ -150,17 +150,17 @@ class MainActivity : ComponentActivity() {
                     }
 
                     if (hasCameraPermission) {
-                        // Используем Column для вертикального размещения элементов
+                        // Use Column for vertical placement of elements
                         Column(
                             modifier = Modifier
                                 .padding(innerPadding)
                                 .fillMaxSize()
                         ) {
-                            // Камера занимает часть экрана (не весь)
+                            // Camera takes up part of the screen (not all)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .weight(0.4f) // 40% экрана для камеры
+                                    .weight(0.4f) // 40% of the screen for the camera
                             ) {
                                 CameraScreen(
                                     modifier = Modifier.fillMaxSize(),
@@ -168,15 +168,15 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            // UI элементы занимают оставшуюся часть экрана
+                            // UI elements take up the remaining part of the screen
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .weight(0.6f) // 60% экрана для UI
+                                    .weight(0.6f) // 60% of the screen for UI
                                     .padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                // Кнопка старт/стоп
+                                // Start/stop button
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.Center
@@ -190,13 +190,13 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     ) {
-                                        Text(if (isMonitoringActive) "Стоп" else "Старт")
+                                        Text(if (isMonitoringActive) "Stop" else "Start")
                                     }
                                 }
 
-                                // Настройка порога срабатывания
+                                // Setting the trigger threshold
                                 Text(
-                                    text = "Порог срабатывания",
+                                    text = "Trigger threshold",
                                     modifier = Modifier.fillMaxWidth(),
                                     textAlign = TextAlign.Center
                                 )
@@ -233,23 +233,23 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
-                                // Поле для промпта ИИ
+                                // AI prompt field
                                 TextField(
                                     value = aiPrompt,
                                     onValueChange = { aiPrompt = it },
-                                    label = { Text("Промпт для ИИ") },
+                                    label = { Text("Prompt for AI") },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = false,
-                                    maxLines = 3 // Ограничиваем высоту поля
+                                    maxLines = 3 // Limit the height of the field
                                 )
 
-                                // Сообщение о сравнении - используем скроллируемый текст
+                                // Comparison message - use scrollable text
                                 val scrollState = rememberScrollState()
                                 Text(
                                     text = comparisonMessage,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .weight(1f) // Занимает оставшееся место
+                                        .weight(1f) // Takes up the remaining space
                                         .verticalScroll(scrollState)
                                         .padding(8.dp),
                                     textAlign = TextAlign.Start,
@@ -264,7 +264,7 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Разрешение на использование камеры не предоставлено.")
+                            Text("Camera permission not granted.")
                         }
                     }
                 }
@@ -299,14 +299,14 @@ class MainActivity : ComponentActivity() {
         if (isMonitoringActive) return
 
         isMonitoringActive = true
-        comparisonMessage = "Начинаем мониторинг..."
+        comparisonMessage = "Starting monitoring..."
         Log.d("MainActivity", "Attempting to start image monitoring.")
 
         captureCurrentFrameAsBitmap { capturedBitmap ->
             if (capturedBitmap != null) {
                 initialBitmap?.recycle()
                 initialBitmap = capturedBitmap
-                comparisonMessage = "Начальное изображение сохранено. Мониторинг активен."
+                comparisonMessage = "Initial image saved. Monitoring active."
                 Log.d("MainActivity", "Initial bitmap captured. Monitoring active.")
 
                 monitoringJob?.cancel()
@@ -319,17 +319,17 @@ class MainActivity : ComponentActivity() {
                         captureCurrentFrameAsBitmap { currentBitmap ->
                             if (currentBitmap != null && initialBitmap != null && isMonitoringActive) {
                                 lifecycleScope.launch {
-                                    // Вызов вашего ImageComparator.calculateDifferencePercentage, определенного в другом файле
+                                    // Calling your ImageComparator.calculateDifferencePercentage, defined in another file
                                     val difference = ImageComparator.calculateDifferencePercentage(initialBitmap!!, currentBitmap)
-                                    val message = "Разница: ${String.format("%.2f", difference)}%"
+                                    val message = "Difference: ${String.format("%.2f", difference)}%"
                                     runOnUiThread {
                                         comparisonMessage = message
                                     }
                                     Log.d("MainActivity", message)
 
                                     if (differenceThreshold < 0.01f || difference > differenceThreshold.toDouble()) {
-                                        val originalAlertMessage = "Обнаружено значительное изменение: ${String.format("%.2f", difference)}%"
-                                        val alertMessageWithPhotoSendAttempt = "$originalAlertMessage. Попытка отправки фото."
+                                        val originalAlertMessage = "Significant change detected: ${String.format("%.2f", difference)}%"
+                                        val alertMessageWithPhotoSendAttempt = "$originalAlertMessage. Attempting to send photo."
                                         runOnUiThread {
                                             comparisonMessage = alertMessageWithPhotoSendAttempt
                                         }
@@ -342,7 +342,7 @@ class MainActivity : ComponentActivity() {
                                                 when {
                                                     responseMsg?.startsWith("STOP_MONITORING:") == true -> {
                                                         val actualAiResponse = responseMsg.substringAfter("STOP_MONITORING:")
-                                                        val stopMessage = "Достигнут лимит сообщений. Ответ ИИ: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "Нет ответа"}"
+                                                        val stopMessage = "Message limit reached. AI response: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "No response"}"
                                                         Toast.makeText(applicationContext, stopMessage, Toast.LENGTH_LONG).show()
                                                         Log.i("MainActivity", "Monitoring stopped due to message limit. AI: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "No response"}")
                                                         comparisonMessage = stopMessage
@@ -350,19 +350,19 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                     responseMsg?.startsWith("SKIPPED_NO:") == true -> {
                                                         val actualAiResponse = responseMsg.substringAfter("SKIPPED_NO:")
-                                                        val skippedMessage = "Отправка пропущена. Ответ ИИ: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "Нет ответа"}"
+                                                        val skippedMessage = "Sending skipped. AI response: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "No response"}"
                                                         Toast.makeText(applicationContext, skippedMessage, Toast.LENGTH_LONG).show()
                                                         Log.i("MainActivity", "Telegram send skipped due to AI response. AI: ${actualAiResponse.takeIf { it.isNotBlank() } ?: "No response"}")
                                                         comparisonMessage = skippedMessage
                                                     }
                                                     analysisSuccess -> {
-                                                        val successMessage = "Фото отправлено! Ответ ИИ: ${responseMsg ?: "Нет ответа"}"
+                                                        val successMessage = "Photo sent! AI response: ${responseMsg ?: "No response"}"
                                                         Toast.makeText(applicationContext, successMessage, Toast.LENGTH_LONG).show()
                                                         Log.d("MainActivity", "Photo sent successfully. AI response: ${responseMsg ?: "No response"}")
                                                         comparisonMessage = successMessage
                                                     }
                                                     else -> {
-                                                        val errorText = "Ошибка отправки фото или анализа ИИ: ${responseMsg ?: "Неизвестная ошибка"}"
+                                                        val errorText = "Error sending photo or AI analysis: ${responseMsg ?: "Unknown error"}"
                                                         Toast.makeText(applicationContext, errorText, Toast.LENGTH_LONG).show()
                                                         Log.e("MainActivity", errorText)
                                                         comparisonMessage = errorText
@@ -374,9 +374,9 @@ class MainActivity : ComponentActivity() {
                                     currentBitmap.recycle()
                                 }
                             } else if (isMonitoringActive) {
-                                Log.e("MainActivity", "Ошибка получения текущего изображения для сравнения или initialBitmap is null.")
+                                Log.e("MainActivity", "Error getting current image for comparison or initialBitmap is null.")
                                 runOnUiThread {
-                                    comparisonMessage = "Ошибка сравнения изображений."
+                                    comparisonMessage = "Image comparison error."
                                 }
                                 currentBitmap?.recycle()
                             } else {
@@ -387,7 +387,7 @@ class MainActivity : ComponentActivity() {
                 }
             } else {
                 isMonitoringActive = false
-                comparisonMessage = "Ошибка: не удалось получить начальное изображение."
+                comparisonMessage = "Error: failed to get initial image."
                 Log.e("MainActivity", "Failed to capture initial bitmap.")
             }
         }
@@ -401,7 +401,7 @@ class MainActivity : ComponentActivity() {
         monitoringJob = null
         initialBitmap?.recycle()
         initialBitmap = null
-        comparisonMessage = "Мониторинг остановлен."
+        comparisonMessage = "Monitoring stopped."
         Log.d("MainActivity", "Image monitoring stopped.")
     }
 
