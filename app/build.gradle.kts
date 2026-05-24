@@ -1,19 +1,18 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
-    namespace = "ua.pp.soulrise.storog" // Ваше имя пакета
-    compileSdk = 35 // Или актуальная версия SDK
+    namespace = "ua.pp.soulrise.storog"
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "ua.pp.soulrise.storog"
-        minSdk = 26 // CameraX требует API 21+, PreviewView API 24+ для некоторых фич
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.1"
+        minSdk = 26
+        targetSdk = 37
+        versionCode = 2
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -23,7 +22,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false // В Kotlin DSL используется isMinifyEnabled
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -32,20 +31,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = "11"
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     buildFeatures {
         compose = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
     }
 }
 
