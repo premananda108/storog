@@ -1,4 +1,4 @@
-package ua.pp.soulrise.storog // Your package name
+package ua.pp.prema.storog // Your package name
 
 import android.graphics.Bitmap
 import android.graphics.Color

@@ -1,4 +1,4 @@
-package ua.pp.soulrise.storog.ui.theme
+package ua.pp.prema.storog.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

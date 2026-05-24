@@ -1,4 +1,4 @@
-package ua.pp.soulrise.storog
+package ua.pp.prema.storog
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

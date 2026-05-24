@@ -1,4 +1,4 @@
-package ua.pp.soulrise.storog
+package ua.pp.prema.storog
 
 import android.content.Context
 import android.os.Bundle
@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import ua.pp.soulrise.storog.ui.theme.StorogTheme
+import ua.pp.prema.storog.ui.theme.StorogTheme
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

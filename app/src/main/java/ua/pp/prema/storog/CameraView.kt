@@ -1,4 +1,4 @@
-package ua.pp.soulrise.storog
+package ua.pp.prema.storog
 
 import android.util.Log
 import androidx.camera.core.CameraSelector

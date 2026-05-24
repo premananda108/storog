@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "ua.pp.soulrise.storog"
+    namespace = "ua.pp.prema.storog"
     compileSdk = 37
 
     defaultConfig {

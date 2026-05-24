@@ -1,4 +1,4 @@
-package ua.pp.soulrise.storog
+package ua.pp.prema.storog
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState

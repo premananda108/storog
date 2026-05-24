@@ -1,4 +1,4 @@
-package ua.pp.soulrise.storog
+package ua.pp.prema.storog
 
 import android.Manifest
 import android.content.Context
@@ -42,7 +42,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import ua.pp.soulrise.storog.ui.theme.StorogTheme
+import ua.pp.prema.storog.ui.theme.StorogTheme
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import androidx.compose.foundation.verticalScroll
