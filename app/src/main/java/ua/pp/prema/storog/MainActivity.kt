@@ -28,12 +28,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
@@ -106,6 +108,35 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Observe ViewModel events for UI feedback (loading, errors, etc.)
+        lifecycleScope.launch {
+            mainViewModel.events.collect { event ->
+                when (event) {
+                    is UiEvent.ShowError -> {
+                        Log.e("MainActivity", "UI Event: ${event.message}")
+                        // Show error toast or snackbar
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, event.message, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    is UiEvent.ShowPreflight -> {
+                        Log.w("MainActivity", "Preflight check: errors=${event.result.errors}, warnings=${event.result.warnings}")
+                        // Show preflight dialog to user
+                    }
+                    is UiEvent.ShowGpuFallback -> {
+                        Log.w("MainActivity", "GPU fallback: ${event.reason}")
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "GPU unavailable: ${event.reason}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    is UiEvent.ShowModelSelection -> {
+                        Log.i("MainActivity", "No models found, show model selection")
+                        // TODO: Show model download dialog to user
+                    }
+                }
+            }
+        }
+
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         checkCameraPermission()
@@ -115,6 +146,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             StorogTheme {
                 val currentContext = LocalContext.current
+                val uiState by mainViewModel.uiState.collectAsState()
 
                 Scaffold(
                     modifier = Modifier
@@ -125,21 +157,47 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(),
                             color = MaterialTheme.colorScheme.surface
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(8.dp)
                             ) {
-                                Button(onClick = {
-                                    val intent = Intent(currentContext, SettingsActivity::class.java)
-                                    currentContext.startActivity(intent)
-                                }) {
-                                    Text("Settings")
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(onClick = {
+                                        val intent = Intent(currentContext, SettingsActivity::class.java)
+                                        currentContext.startActivity(intent)
+                                    }) {
+                                        Text("Settings")
+                                    }
+                                    Button(onClick = { showHelpDialog = true }) {
+                                        Text("Help")
+                                    }
                                 }
-                                Button(onClick = { showHelpDialog = true }) {
-                                    Text("Help")
+                                
+                                // Model status display
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp),
+                                    color = when (uiState.modelStatus) {
+                                        is ModelStatus.Ready -> MaterialTheme.colorScheme.tertiaryContainer
+                                        is ModelStatus.Error -> MaterialTheme.colorScheme.errorContainer
+                                        is ModelStatus.Loading, is ModelStatus.Downloading -> MaterialTheme.colorScheme.secondaryContainer
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = uiState.statusText,
+                                        modifier = Modifier.padding(8.dp),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
                                 }
                             }
                         }
@@ -188,7 +246,8 @@ class MainActivity : ComponentActivity() {
                                             } else {
                                                 startImageMonitoring()
                                             }
-                                        }
+                                        },
+                                        enabled = uiState.isMonitoringEnabled
                                     ) {
                                         Text(if (isMonitoringActive) "Stop" else "Start")
                                     }

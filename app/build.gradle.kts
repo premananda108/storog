@@ -8,7 +8,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "ua.pp.soulrise.storog"
+        applicationId = "ua.pp.prema.storog"
         minSdk = 26
         targetSdk = 37
         versionCode = 2
