@@ -31,9 +31,13 @@ class LiteRtService(
 
         // Convert Bitmap to file if provided
         val imageFile: File? = if (imageBitmap != null) {
+            var resizedBitmap: Bitmap? = null
             try {
+                val bitmapToSave = resizeBitmap(imageBitmap, 512).also {
+                    if (it !== imageBitmap) resizedBitmap = it
+                }
                 val tempImageFile = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
-                val success = saveBitmapToFile(imageBitmap, tempImageFile)
+                val success = saveBitmapToFile(bitmapToSave, tempImageFile)
 
                 if (success && tempImageFile.exists()) {
                     Log.d(TAG, "Image saved to: ${tempImageFile.absolutePath}")
@@ -45,6 +49,8 @@ class LiteRtService(
             } catch (e: Exception) {
                 Log.e(TAG, "Error saving image to file", e)
                 null
+            } finally {
+                resizedBitmap?.recycle()
             }
         } else {
             null
@@ -79,12 +85,32 @@ class LiteRtService(
     }.flowOn(Dispatchers.IO)
 
     /**
+     * Resizes the bitmap so the long side is no larger than maxSize while maintaining aspect ratio.
+     */
+    private fun resizeBitmap(bitmap: Bitmap, maxSize: Int): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        if (width <= maxSize && height <= maxSize) {
+            return bitmap
+        }
+
+        val aspectRatio = width.toFloat() / height.toFloat()
+        val (newWidth, newHeight) = if (width >= height) {
+            maxSize to (maxSize / aspectRatio).toInt()
+        } else {
+            (maxSize * aspectRatio).toInt() to maxSize
+        }
+
+        return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+    }
+
+    /**
      * Saves a Bitmap to a JPEG file.
      */
     private fun saveBitmapToFile(bitmap: Bitmap, file: File): Boolean {
         return try {
             file.outputStream().use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 75, out)
             }
             true
         } catch (e: Exception) {
