@@ -12,6 +12,14 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.long
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.JsonElement
 
 class TelegramBotSender(
     private val botToken: String, // Pass the token when creating an instance
@@ -101,5 +109,38 @@ class TelegramBotSender(
     fun close() {
         client.close()
         Log.d("TelegramBotSender", "HttpClient closed.")
+    }
+}
+
+// Suspend helper to fetch chat id from getUpdates using provided token.
+suspend fun fetchChatId(token: String): String? {
+    val client = HttpClient(CIO) {
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true; isLenient = true })
+        }
+    }
+    return try {
+        val url = "https://api.telegram.org/bot$token/getUpdates"
+        val resp = client.get(url)
+        if (!resp.status.isSuccess()) return null
+        val text = resp.bodyAsText()
+        val elem = Json.parseToJsonElement(text)
+        if (elem is JsonElement) {
+            val result = elem.jsonObject["result"]
+            if (result != null && result is JsonElement && result.jsonArray.isNotEmpty()) {
+                val last = result.jsonArray.last()
+                // message may be under "message" or "channel_post" etc.
+                val msg = last.jsonObject["message"] ?: last.jsonObject["channel_post"]
+                val chat = msg?.jsonObject?.get("chat")
+                val idElem = chat?.jsonObject?.get("id")
+                val id = idElem?.jsonPrimitive?.content
+                id
+            } else null
+        } else null
+    } catch (e: Exception) {
+        Log.e("TelegramBotSender", "fetchChatId error", e)
+        null
+    } finally {
+        client.close()
     }
 }

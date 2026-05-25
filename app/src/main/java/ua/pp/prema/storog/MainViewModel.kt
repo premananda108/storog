@@ -55,25 +55,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val sharedPreferences = getApplication<Application>().getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
         val targetChatId = sharedPreferences.getString("TARGET_CHAT_ID", null)
+        val botToken = sharedPreferences.getString("MY_BOT_TOKEN", null)
 
-        try {
-            getApplication<Application>().assets.open("my_config.properties").use { inputStream ->
-                properties.load(inputStream)
-            }
-            val botToken = properties.getProperty("MY_BOT_TOKEN")
-
-            if (botToken != null && targetChatId != null) {
-                telegramSender = TelegramBotSender(botToken, targetChatId)
-            } else {
-                Log.w(TAG, "MY_BOT_TOKEN or TARGET_CHAT_ID not found.")
-                _events.trySend(UiEvent.ShowError("Telegram is not configured. Notifications will be disabled."))
-            }
-        } catch (e: FileNotFoundException) {
-            Log.w(TAG, "Configuration file my_config.properties not found. Telegram notifications disabled.")
-            _events.trySend(UiEvent.ShowError("Configuration file missing: my_config.properties. Telegram notifications are disabled."))
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading properties file", e)
-            _events.trySend(UiEvent.ShowError("Failed to load configuration: ${e.localizedMessage}"))
+        if (!botToken.isNullOrBlank() && !targetChatId.isNullOrBlank()) {
+            telegramSender = TelegramBotSender(botToken, targetChatId)
+        } else {
+            Log.i(TAG, "Telegram not configured (missing token or chat id).")
+            _events.trySend(UiEvent.ShowError("Telegram not configured. Go to Settings."))
         }
         
         // Start model initialization sequence. LiteRT model can still be loaded without Telegram config.
@@ -240,9 +228,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Function to send photo with AI prompt
     fun processAndSendImageWithPrompt(photoBytes: ByteArray, prompt: String, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
-            if (!::telegramSender.isInitialized || !::liteRtService.isInitialized) {
-                android.util.Log.e("MainViewModel", "TelegramSender or LiteRtService not initialized.")
-                callback(false, "Error: Services not initialized")
+            if (!::telegramSender.isInitialized) {
+                android.util.Log.e("MainViewModel", "TelegramSender not initialized.")
+                callback(false, "Error: Telegram not configured")
                 return@launch
             }
 

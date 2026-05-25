@@ -9,8 +9,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import android.widget.Toast
 import ua.pp.prema.storog.ui.theme.StorogTheme
 
 class SettingsActivity : ComponentActivity() {
@@ -33,6 +38,9 @@ class SettingsActivity : ComponentActivity() {
 @Composable
 fun SettingsScreen() {
     var chatId by remember { mutableStateOf(TextFieldValue("")) }
+    var botToken by remember { mutableStateOf(TextFieldValue("")) }
+    var showDetectHint by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val sharedPreferences = remember {
         context.getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
@@ -41,6 +49,7 @@ fun SettingsScreen() {
     // Load saved chat_id on first launch
     LaunchedEffect(Unit) {
         chatId = TextFieldValue(sharedPreferences.getString("TARGET_CHAT_ID", "") ?: "")
+        botToken = TextFieldValue(sharedPreferences.getString("MY_BOT_TOKEN", "") ?: "")
     }
 
     Column(
@@ -63,11 +72,63 @@ fun SettingsScreen() {
                 .padding(bottom = 16.dp)
         )
 
+        OutlinedTextField(
+            value = botToken,
+            onValueChange = { botToken = it },
+            label = { Text("Telegram Bot Token (MY_BOT_TOKEN)") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+        )
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                // Show hint dialog before detecting
+                showDetectHint = true
+            }) {
+                Text("Detect Chat ID")
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+        }
+
+        if (showDetectHint) {
+            AlertDialog(
+                onDismissRequest = { showDetectHint = false },
+                title = { Text("Detect chat ID") },
+                text = { Text("Send any message to your bot in Telegram, then press Detect to auto-fill the Chat ID.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDetectHint = false
+                        // perform detection
+                        val tokenText = botToken.text.trim()
+                        if (tokenText.isEmpty()) {
+                            Toast.makeText(context, "Please enter your bot token first.", Toast.LENGTH_LONG).show()
+                        } else {
+                            coroutineScope.launch {
+                                val detected = fetchChatId(tokenText)
+                                if (detected != null) {
+                                    chatId = TextFieldValue(detected)
+                                    Toast.makeText(context, "Detected chat id: $detected", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to detect chat id. Make sure you sent a message to the bot.", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    }) { Text("Detect") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDetectHint = false }) { Text("Cancel") }
+                }
+            )
+        }
+
         Button(
             onClick = {
                 // Save chat_id
                 sharedPreferences.edit().apply {
                     putString("TARGET_CHAT_ID", chatId.text)
+                    putString("MY_BOT_TOKEN", botToken.text)
                     apply()
                 }
                 // Close activity
