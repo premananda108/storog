@@ -440,6 +440,11 @@ class MainActivity : ComponentActivity() {
                         delay(comparisonIntervalMillis)
                         if (!isMonitoringActive) break
 
+                        if (mainViewModel.isAnalysisInProgress.value) {
+                            Log.d("MainActivity", "Analysis in progress, skipping this iteration.")
+                            continue
+                        }
+
                         Log.d("MainActivity", "Capturing frame for comparison...")
                         captureCurrentFrameAsBitmap { currentBitmap ->
                             if (currentBitmap != null && initialBitmap != null && isMonitoringActive) {

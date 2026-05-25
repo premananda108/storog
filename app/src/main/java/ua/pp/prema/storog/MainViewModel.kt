@@ -39,6 +39,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _events = Channel<UiEvent>(Channel.BUFFERED)
     val events: Flow<UiEvent> = _events.receiveAsFlow()
 
+    private val _isAnalysisInProgress = MutableStateFlow(false)
+    val isAnalysisInProgress: StateFlow<Boolean> = _isAnalysisInProgress.asStateFlow()
+
     // ── Dependencies ────────────────────────────────────────────────────────
     private lateinit var telegramSender: TelegramBotSender
     private lateinit var liteRtService: LiteRtService
@@ -228,77 +231,74 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Function to send photo with AI prompt
     fun processAndSendImageWithPrompt(photoBytes: ByteArray, prompt: String, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
-            if (!::telegramSender.isInitialized) {
-                android.util.Log.e("MainViewModel", "TelegramSender not initialized.")
-                callback(false, "Error: Telegram not configured")
-                return@launch
-            }
-
-            val bitmap = BitmapFactory.decodeByteArray(photoBytes, 0, photoBytes.size)
-            if (bitmap == null) {
-                android.util.Log.e("MainViewModel", "Failed to decode photoBytes to Bitmap.")
-                callback(false, "Error: Failed to process image")
-                return@launch
-            }
-
-            var liteRtResponseText: String? = "Image analysis failed."
-            var analysisSuccess = false
-
+            _isAnalysisInProgress.value = true
             try {
-                // Modify prompt to guide the model output format
-                val modifiedPrompt = prompt + " Always start the answer with 'Yes' or 'No' or 'Not sure'"
-                
-                // Call LiteRtService to generate response
-                val responseFlow = liteRtService.generateChatResponseStreaming(
-                    userPrompt = modifiedPrompt,
-                    imageBitmap = bitmap
-                )
-
-                val stringBuilder = StringBuilder()
-                responseFlow.collect { token ->
-                    stringBuilder.append(token)
-                }
-                liteRtResponseText = stringBuilder.toString()
-                
-                if (liteRtResponseText.isNotBlank() && !liteRtResponseText.startsWith("Error:")) {
-                    analysisSuccess = true
-                    android.util.Log.i("MainViewModel", "LiteRT analysis successful: $liteRtResponseText")
-                } else {
-                    android.util.Log.w("MainViewModel", "LiteRT analysis returned empty or error: $liteRtResponseText")
+                if (!::telegramSender.isInitialized) {
+                    android.util.Log.e("MainViewModel", "TelegramSender not initialized.")
+                    callback(false, "Error: Telegram not configured")
+                    return@launch
                 }
 
-            } catch (e: Exception) {
-                android.util.Log.e("MainViewModel", "Error during LiteRT analysis", e)
-                liteRtResponseText = "Image analysis error: ${e.localizedMessage}"
-                analysisSuccess = false
-            }
+                val bitmap = BitmapFactory.decodeByteArray(photoBytes, 0, photoBytes.size)
+                if (bitmap == null) {
+                    android.util.Log.e("MainViewModel", "Failed to decode photoBytes to Bitmap.")
+                    callback(false, "Error: Failed to process image")
+                    return@launch
+                }
 
-            // Check the response from LiteRT before sending to Telegram
-            if (analysisSuccess && (liteRtResponseText.startsWith(
-                    "No",
-                    ignoreCase = true
-                ) == true)
-            ) {
-                android.util.Log.i("MainViewModel", "Sending to Telegram skipped because AI response starts with 'No'. Response: $liteRtResponseText")
-                // Report analysis success, but that sending was skipped.
-                callback(true, "SKIPPED_NO:$liteRtResponseText") // Analysis success, but sending skipped
-            } else {
-                // Send photo with LiteRT response as caption
-                val captionToSend = if (analysisSuccess) liteRtResponseText else "Failed to get description from LiteRT."
-                val telegramSuccess = telegramSender.sendPhoto(photoBytes = photoBytes, caption = captionToSend)
-                if (telegramSuccess) {
-                    messagesSent++
-                    if (messagesSent >= 3) {
-                        // Send message about reaching the limit
-                        telegramSender.sendMessage("Reached the limit of 3 messages. Monitoring stopped.")
-                        // Call callback with a special flag to stop monitoring
-                        callback(true, "STOP_MONITORING:$liteRtResponseText")
-                    } else {
-                        callback(true, liteRtResponseText)
+                var liteRtResponseText: String? = "Image analysis failed."
+                var analysisSuccess = false
+
+                try {
+                    // Modify prompt to guide the model output format
+                    val modifiedPrompt = prompt + " Always start the answer with 'Yes' or 'No' or 'Not sure'"
+
+                    // Call LiteRtService to generate response
+                    val responseFlow = liteRtService.generateChatResponseStreaming(
+                        userPrompt = modifiedPrompt,
+                        imageBitmap = bitmap
+                    )
+
+                    val stringBuilder = StringBuilder()
+                    responseFlow.collect { token ->
+                        stringBuilder.append(token)
                     }
-                } else {
-                    callback(false, liteRtResponseText)
+                    liteRtResponseText = stringBuilder.toString()
+
+                    if (liteRtResponseText.isNotBlank() && !liteRtResponseText.startsWith("Error:")) {
+                        analysisSuccess = true
+                        android.util.Log.i("MainViewModel", "LiteRT analysis successful: $liteRtResponseText")
+                    } else {
+                        android.util.Log.w("MainViewModel", "LiteRT analysis returned empty or error: $liteRtResponseText")
+                    }
+
+                } catch (e: Exception) {
+                    android.util.Log.e("MainViewModel", "Error during LiteRT analysis", e)
+                    liteRtResponseText = "Image analysis error: ${e.localizedMessage}"
+                    analysisSuccess = false
                 }
+
+                // Check the response from LiteRT before sending to Telegram
+                if (analysisSuccess && liteRtResponseText?.startsWith("No", ignoreCase = true) == true) {
+                    android.util.Log.i("MainViewModel", "Sending to Telegram skipped because AI response starts with 'No'. Response: $liteRtResponseText")
+                    callback(true, "SKIPPED_NO:$liteRtResponseText")
+                } else {
+                    val captionToSend = if (analysisSuccess) liteRtResponseText else "Failed to get description from LiteRT."
+                    val telegramSuccess = telegramSender.sendPhoto(photoBytes = photoBytes, caption = captionToSend)
+                    if (telegramSuccess) {
+                        messagesSent++
+                        if (messagesSent >= 3) {
+                            telegramSender.sendMessage("Reached the limit of 3 messages. Monitoring stopped.")
+                            callback(true, "STOP_MONITORING:$liteRtResponseText")
+                        } else {
+                            callback(true, liteRtResponseText)
+                        }
+                    } else {
+                        callback(false, liteRtResponseText)
+                    }
+                }
+            } finally {
+                _isAnalysisInProgress.value = false
             }
         }
     }
