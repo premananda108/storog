@@ -220,6 +220,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         is DownloadException.LowRam -> "Insufficient RAM: ${e.deviceRam}GB (need ${e.requiredRam}GB)"
     }
 
+    fun availableModels(): List<ModelInfo> = liteRtManager.availableModels()
+
     // ── Monitoring API ─────────────────────────────────────────────────────
 
     // Example of a function that is called by a button press or other event

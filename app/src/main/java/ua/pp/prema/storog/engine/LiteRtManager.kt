@@ -427,6 +427,8 @@ class LiteRtManager(private val context: Context) {
     fun downloadedModels(): List<File> =
         context.filesDir.listFiles { _, n -> n.endsWith(".litertlm") }?.toList() ?: emptyList()
 
+    fun availableModels(): List<ModelInfo> = AVAILABLE_MODELS
+
     fun close() {
         val handle = engineHandle
         engineHandle = null

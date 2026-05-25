@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -49,6 +50,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import ua.pp.prema.storog.engine.ModelInfo
 
 class MainActivity : ComponentActivity() {
 
@@ -56,6 +58,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var mainViewModel: MainViewModel
     private var hasCameraPermission by mutableStateOf(false)
+    private var showModelSelectionDialog by mutableStateOf(false)
+    private var availableModels by mutableStateOf<List<ModelInfo>>(emptyList())
 
     private var initialBitmap: Bitmap? by mutableStateOf(null)
     private var monitoringJob: Job? by mutableStateOf(null)
@@ -65,6 +69,8 @@ class MainActivity : ComponentActivity() {
     private var differenceThreshold by mutableStateOf(5.0f)
     private var aiPrompt by mutableStateOf("is there a cat in the picture?")
     private var showHelpDialog by mutableStateOf(false)
+    private var showPreflightDialog by mutableStateOf(false)
+    private var preflightWarnings by mutableStateOf("")
 
     private fun saveSettings() {
         val sharedPreferences = getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
@@ -121,7 +127,8 @@ class MainActivity : ComponentActivity() {
                     }
                     is UiEvent.ShowPreflight -> {
                         Log.w("MainActivity", "Preflight check: errors=${event.result.errors}, warnings=${event.result.warnings}")
-                        // Show preflight dialog to user
+                        preflightWarnings = event.result.warnings.joinToString("\n")
+                        showPreflightDialog = true
                     }
                     is UiEvent.ShowGpuFallback -> {
                         Log.w("MainActivity", "GPU fallback: ${event.reason}")
@@ -131,7 +138,15 @@ class MainActivity : ComponentActivity() {
                     }
                     is UiEvent.ShowModelSelection -> {
                         Log.i("MainActivity", "No models found, show model selection")
-                        // TODO: Show model download dialog to user
+                        val models = mainViewModel.availableModels()
+                        if (models.isNotEmpty()) {
+                            availableModels = models
+                            showModelSelectionDialog = true
+                        } else {
+                            runOnUiThread {
+                                Toast.makeText(this@MainActivity, "No available models are configured.", Toast.LENGTH_LONG).show()
+                            }
+                        }
                     }
                 }
             }
@@ -205,6 +220,57 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     if (showHelpDialog) {
                         HelpDialog(onDismiss = { showHelpDialog = false })
+                    }
+
+                    if (showPreflightDialog) {
+                        AlertDialog(
+                            onDismissRequest = { },
+                            title = { Text("Warning") },
+                            text = { Text(preflightWarnings) },
+                            confirmButton = {
+                                Button(onClick = {
+                                    showPreflightDialog = false
+                                    mainViewModel.onPreflightAccepted()
+                                }) {
+                                    Text("Continue")
+                                }
+                            },
+                            dismissButton = {
+                                Button(onClick = { showPreflightDialog = false }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
+                    }
+
+                    if (showModelSelectionDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showModelSelectionDialog = false },
+                            title = { Text("Select model to download") },
+                            text = {
+                                Column {
+                                    Text("Choose a model to download and initialize.")
+                                    availableModels.forEach { model ->
+                                        Button(
+                                            onClick = {
+                                                mainViewModel.downloadModel(model)
+                                                showModelSelectionDialog = false
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp)
+                                        ) {
+                                            Text(model.name)
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                Button(onClick = { showModelSelectionDialog = false }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
                     }
 
                     if (hasCameraPermission) {

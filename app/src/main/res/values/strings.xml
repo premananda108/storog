@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Watchman</string>
+    <string name="app_name">Storog</string>
 
     <!-- Preflight checks -->
     <string name="preflight_error_title">Device not supported</string>
