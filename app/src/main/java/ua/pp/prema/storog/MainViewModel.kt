@@ -13,6 +13,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private lateinit var telegramSender: TelegramBotSender
     private lateinit var liteRtService: LiteRtService
+    private lateinit var liteRtManager: LiteRtManager
     private var messagesSent = 0 // Sent messages counter
 
     init {
@@ -27,8 +28,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             if (botToken != null && targetChatId != null) {
                 telegramSender = TelegramBotSender(botToken, targetChatId)
-                // Initialize LiteRtService with context and LiteRtManager
-                val liteRtManager = LiteRtManager(getApplication())
+                // Initialize LiteRtManager and LiteRtService
+                liteRtManager = LiteRtManager(getApplication())
                 liteRtService = LiteRtService(getApplication(), liteRtManager)
             } else {
                 android.util.Log.e("MainViewModel", "MY_BOT_TOKEN or TARGET_CHAT_ID not found.")
@@ -135,6 +136,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (::telegramSender.isInitialized) {
             telegramSender.close()
         }
-        // GeminiService does not require explicit close() if it does not use resources that need to be released
+        if (::liteRtManager.isInitialized) {
+            liteRtManager.close()
+        }
     }
 }
