@@ -1,3 +1,40 @@
 <resources>
     <string name="app_name">Watchman</string>
+
+    <!-- Preflight checks -->
+    <string name="preflight_error_title">Device not supported</string>
+    <string name="preflight_warning_title">Compatibility warning</string>
+    <string name="preflight_error_abi">❌ Unsupported CPU architecture\nFound: %1$s\nRequired: arm64-v8a\n\nThe application cannot run on this device.</string>
+    <string name="preflight_error_android">❌ Android %1$s is not supported\nAndroid 9.0 (API 28) or newer is required.</string>
+    <string name="preflight_error_storage">❌ Insufficient free space\nAvailable: %1$s\nAt least %2$s is required to download the model.</string>
+    <string name="preflight_error_ram">❌ Insufficient RAM\nDevice RAM: %1$s\nAt least %2$s is required.</string>
+    <string name="preflight_warn_storage">⚠️ Low free space (%1$s)\nAt least %2$s is recommended.</string>
+    <string name="preflight_warn_ram">⚠️ Limited RAM (%1$s)\n%2$s+ is recommended for stable operation.</string>
+    <string name="preflight_ok">Continue</string>
+    <string name="preflight_cancel">Exit</string>
+
+    <!-- Engine / model errors -->
+    <string name="error_dialog_title">Error</string>
+    <string name="error_model_oom">💾 Out of memory\n\nThe model is too large for this device. Try:\n• Closing other applications\n• Selecting a smaller model (E2B instead of E4B)</string>
+    <string name="error_model_corrupt">🗑 Model file is corrupted\n\nThe file will be deleted. Please download the model again.</string>
+    <string name="error_model_not_found">📂 Model file not found\n\nPlease select and download a model.</string>
+    <string name="error_engine_gpu">🎮 GPU unavailable\n\nReason: %1$s\nSwitching to CPU…</string>
+    <string name="error_engine_init">⚙️ Engine initialization error\n\n%1$s</string>
+
+    <!-- Download errors -->
+    <string name="error_download_no_space">💾 Insufficient space for download\n\nFree up space on the device and try again.</string>
+    <string name="error_download_timeout">⏱ Connection timeout\n\nCheck your internet connection and try again.</string>
+    <string name="error_download_http">🌐 Server error: HTTP %1$d\n\nTry again later or check your internet connection.</string>
+    <string name="error_download_io">📡 Download error\n\nConnection interrupted. Check your internet connection and try again.\n\nDetails: %1$s</string>
+    <string name="error_download_low_ram">💾 Insufficient RAM\n\nYour device has %1$.1f GB of RAM, but at least %2$.1f GB is required to run this model. Try selecting a smaller model.</string>
+
+    <!-- Inference errors -->
+    <string name="error_inference_context">🔄 Context overflow\n\nConversation is too long. Please create a new chat.</string>
+    <string name="error_inference_generic">⚠️ Response generation error\n\n%1$s</string>
+
+    <string name="close">Close</string>
+    <string name="retry">Retry</string>
+    <string name="download_model_btn">Download Model</string>
+    <string name="device_info_label">Diagnostics: %1$s | RAM: %2$s | Storage: %3$s</string>
+
 </resources>

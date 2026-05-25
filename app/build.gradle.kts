@@ -18,6 +18,11 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+
     }
 
     buildTypes {
@@ -49,6 +54,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.12.0")
+
 
     // CameraX dependencies
     val cameraxVersion = "1.3.1" // Используйте актуальную версию CameraX
@@ -63,7 +70,6 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
 
-    implementation("com.google.ai.client.generativeai:generativeai:0.9.0") // Используйте последнюю версию
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3") // Если еще не добавлено
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 

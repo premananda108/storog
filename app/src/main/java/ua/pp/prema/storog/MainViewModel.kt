@@ -5,15 +5,14 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.ai.client.generativeai.type.Content
 import kotlinx.coroutines.launch
+import ua.pp.prema.storog.engine.LiteRtManager
 import java.util.Properties
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private lateinit var telegramSender: TelegramBotSender
-    private lateinit var geminiService: GeminiService
-    private val chatHistory = mutableListOf<Content>() // Initialize chat history
+    private lateinit var liteRtService: LiteRtService
     private var messagesSent = 0 // Sent messages counter
 
     init {
@@ -23,15 +22,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 properties.load(inputStream)
             }
             val botToken = properties.getProperty("MY_BOT_TOKEN")
-            val geminiApiKey = properties.getProperty("GEMINI_API_KEY")
             val sharedPreferences = getApplication<Application>().getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
             val targetChatId = sharedPreferences.getString("TARGET_CHAT_ID", null)
 
-            if (botToken != null && targetChatId != null && geminiApiKey != null) {
+            if (botToken != null && targetChatId != null) {
                 telegramSender = TelegramBotSender(botToken, targetChatId)
-                geminiService = GeminiService(geminiApiKey) // Initialization of GeminiService
+                // Initialize LiteRtService with context and LiteRtManager
+                val liteRtManager = LiteRtManager(getApplication())
+                liteRtService = LiteRtService(getApplication(), liteRtManager)
             } else {
-                android.util.Log.e("MainViewModel", "GEMINI_API_KEY, MY_BOT_TOKEN or TARGET_CHAT_ID not found.")
+                android.util.Log.e("MainViewModel", "MY_BOT_TOKEN or TARGET_CHAT_ID not found.")
                 // In a real application, there should be more robust error handling here.
             }
         } catch (e: Exception) {
@@ -55,8 +55,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Function to send photo with AI prompt
     fun processAndSendImageWithPrompt(photoBytes: ByteArray, prompt: String, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
-            if (!::telegramSender.isInitialized || !::geminiService.isInitialized) {
-                android.util.Log.e("MainViewModel", "TelegramSender or GeminiService not initialized.")
+            if (!::telegramSender.isInitialized || !::liteRtService.isInitialized) {
+                android.util.Log.e("MainViewModel", "TelegramSender or LiteRtService not initialized.")
                 callback(false, "Error: Services not initialized")
                 return@launch
             }
@@ -68,56 +68,50 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            var geminiResponseText: String? = "Image analysis failed."
+            var liteRtResponseText: String? = "Image analysis failed."
             var analysisSuccess = false
 
             try {
-                // Using streaming version for example, but non-streaming is also possible
-                // For simplicity, we will collect the entire response here before sending
+                // Modify prompt to guide the model output format
                 val modifiedPrompt = prompt + " Always start the answer with 'Yes' or 'No' or 'Not sure'"
-                val responseFlow = geminiService.generateChatResponseStreaming(
-                    userPrompt = modifiedPrompt, // Using the modified prompt
-                    imageBitmap = bitmap,
-                    chatHistory = chatHistory // Pass and update chat history
+                
+                // Call LiteRtService to generate response
+                val responseFlow = liteRtService.generateChatResponseStreaming(
+                    userPrompt = modifiedPrompt,
+                    imageBitmap = bitmap
                 )
 
                 val stringBuilder = StringBuilder()
-                responseFlow.collect { (chunk, _) -> // isFinal is not used
-                    stringBuilder.append(chunk)
+                responseFlow.collect { token ->
+                    stringBuilder.append(token)
                 }
-                geminiResponseText = stringBuilder.toString()
-                if (geminiResponseText.isNotBlank() && !geminiResponseText.startsWith("Error:")) {
+                liteRtResponseText = stringBuilder.toString()
+                
+                if (liteRtResponseText.isNotBlank() && !liteRtResponseText.startsWith("Error:")) {
                     analysisSuccess = true
-                    android.util.Log.i("MainViewModel", "Gemini analysis successful: $geminiResponseText")
+                    android.util.Log.i("MainViewModel", "LiteRT analysis successful: $liteRtResponseText")
                 } else {
-                    android.util.Log.w("MainViewModel", "Gemini analysis returned empty or error: $geminiResponseText")
+                    android.util.Log.w("MainViewModel", "LiteRT analysis returned empty or error: $liteRtResponseText")
                 }
 
             } catch (e: Exception) {
-                android.util.Log.e("MainViewModel", "Error during Gemini API call", e)
-                geminiResponseText = "Image analysis error: ${e.localizedMessage}"
+                android.util.Log.e("MainViewModel", "Error during LiteRT analysis", e)
+                liteRtResponseText = "Image analysis error: ${e.localizedMessage}"
                 analysisSuccess = false
             }
 
-            // Check the response from Gemini before sending
-            if (analysisSuccess && (geminiResponseText.startsWith(
+            // Check the response from LiteRT before sending to Telegram
+            if (analysisSuccess && (liteRtResponseText.startsWith(
                     "No",
                     ignoreCase = true
                 ) == true)
             ) {
-                android.util.Log.i("MainViewModel", "Sending to Telegram skipped because AI response starts with 'No'. Response: $geminiResponseText")
+                android.util.Log.i("MainViewModel", "Sending to Telegram skipped because AI response starts with 'No'. Response: $liteRtResponseText")
                 // Report analysis success, but that sending was skipped.
-                // Pass a special message or flag if necessary for the UI.
-                // In this case, callback(true, ...) will mean that the analysis was successful, but sending might have been skipped.
-                // MainActivity will need to check responseMsg to see if sending occurred.
-                // Or another parameter can be added to the callback.
-                // For now, for simplicity, we will assume that if geminiResponseText starts with "No",
-                // then telegramSuccess will be false, but analysisSuccess can be true.
-                // To allow the UI to distinguish this, we will change the callback logic.
-                callback(true, "SKIPPED_NO:$geminiResponseText") // Analysis success, but sending skipped
+                callback(true, "SKIPPED_NO:$liteRtResponseText") // Analysis success, but sending skipped
             } else {
-                // Send photo with Gemini response as caption
-                val captionToSend = if (analysisSuccess) geminiResponseText else "Failed to get description from Gemini."
+                // Send photo with LiteRT response as caption
+                val captionToSend = if (analysisSuccess) liteRtResponseText else "Failed to get description from LiteRT."
                 val telegramSuccess = telegramSender.sendPhoto(photoBytes = photoBytes, caption = captionToSend)
                 if (telegramSuccess) {
                     messagesSent++
@@ -125,12 +119,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         // Send message about reaching the limit
                         telegramSender.sendMessage("Reached the limit of 3 messages. Monitoring stopped.")
                         // Call callback with a special flag to stop monitoring
-                        callback(true, "STOP_MONITORING:$geminiResponseText")
+                        callback(true, "STOP_MONITORING:$liteRtResponseText")
                     } else {
-                        callback(true, geminiResponseText)
+                        callback(true, liteRtResponseText)
                     }
                 } else {
-                    callback(false, geminiResponseText)
+                    callback(false, liteRtResponseText)
                 }
             }
         }

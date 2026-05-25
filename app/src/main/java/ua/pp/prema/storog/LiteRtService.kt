@@ -1,127 +1,99 @@
 package ua.pp.prema.storog
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
-import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.Content
-import com.google.ai.client.generativeai.type.GenerationConfig
-import com.google.ai.client.generativeai.type.InvalidStateException
-import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onCompletion
+import ua.pp.prema.storog.engine.LiteRtManager
+import java.io.File
 
-class GeminiService(
-    private val apiKey: String,
-    private val defaultModelName: String = "gemini-1.5-flash-latest" // Default value can be set
+class LiteRtService(
+    private val context: Context,
+    private val liteRtManager: LiteRtManager
 ) {
 
-    // Generation configuration, analogous to generate_content_config
-    private val generationConfig = GenerationConfig.Builder().apply {
-        // responseMimeType = "text/plain" // SDK usually determines this itself or uses text/plain
-        // temperature = 0.9f
-        // topK = 1
-        // topP = 1f
-        // maxOutputTokens = 2048
-    }.build()
-
-    init {
-        if (apiKey.isEmpty()) {
-            Log.w(
-                "GeminiService",
-                "API Key provided to GeminiService is empty. Calls will likely fail."
-            )
-            // IllegalArgumentException can be thrown if an empty key is not allowed
-            // throw IllegalArgumentException("API Key cannot be empty.")
-        }
-        Log.i("GeminiService", "GeminiService initialized with model: $defaultModelName")
-    }
-
     /**
-     * Generates a response from LLM in streaming mode.
+     * Generates a response from the LiteRT model with an optional image.
+     * Unlike the cloud Gemini API, this uses a local model and does not support chat history.
      *
      * @param userPrompt Text query from the user.
-     * @param imageBitmap Optional image for a multimodal query.
-     * @param chatHistory Current chat history (list of Content objects).
-     * @param modelNameOverride Name of the model to use, if defaultModelName needs to be overridden.
-     * @return Flow<Pair<String, Boolean>> Stream of text fragments of the response.
-     *         Also updates chatHistory by adding the user's request and the model's full response to it.
+     * @param imageBitmap Optional image for visual analysis.
+     * @return Flow<String> Stream of text tokens from the model response.
      */
     suspend fun generateChatResponseStreaming(
         userPrompt: String,
-        imageBitmap: Bitmap? = null,
-        chatHistory: MutableList<Content>, // Pass a mutable list for update
-        modelNameOverride: String? = null
-    ): Flow<Pair<String, Boolean>> { // Pair<chunkText, isFinalChunk>
-        if (apiKey.isEmpty()) {
-            // This check is already in init, but duplicating it here for a specific call won't hurt
-            Log.e("GeminiService", "API Key is missing.")
-            throw IllegalArgumentException("API Key is missing. Cannot make API calls.")
-        }
+        imageBitmap: Bitmap? = null
+    ): Flow<String> = flow {
+        Log.d(TAG, "Starting LiteRT inference with prompt: $userPrompt, Image: ${imageBitmap != null}")
 
-        val currentModelName = modelNameOverride ?: defaultModelName
+        // Convert Bitmap to file if provided
+        val imageFile: File? = if (imageBitmap != null) {
+            try {
+                val tempImageFile = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
+                val success = saveBitmapToFile(imageBitmap, tempImageFile)
 
-        val generativeModel = GenerativeModel(
-            modelName = currentModelName,
-            apiKey = apiKey,
-            generationConfig = generationConfig
-            // safetySettings = ... // Safety settings can be configured
-        )
-
-        // Create content for the current user request
-        val userInputContent = content(role = "user") {
-            imageBitmap?.let { image(it) } // Add image if it exists
-            text(userPrompt)
-        }
-
-        // Form history for the current API call
-        val currentCallHistory = chatHistory.toList() + userInputContent
-
-        Log.d(
-            "GeminiService",
-            "Sending to $currentModelName. History size: ${currentCallHistory.size}, Prompt: $userPrompt, Image: ${imageBitmap != null}"
-        )
-
-        val fullResponseBuilder = StringBuilder()
-        var isFinished = false
-
-        return generativeModel.generateContentStream(*currentCallHistory.toTypedArray())
-            .map { responseChunk ->
-                val chunkText = responseChunk.text ?: ""
-                fullResponseBuilder.append(chunkText)
-                Log.d("GeminiService", "Chunk received: $chunkText")
-                Pair(chunkText, false)
-            }
-            .catch { e ->
-                Log.e("GeminiService", "Error generating content stream for $currentModelName", e)
-                isFinished = true
-                if (e is InvalidStateException && e.message?.contains("API key not valid") == true) {
-                    emit(Pair("Error: Invalid API key. Check settings.", true))
-                } else if (e.message?.contains("RESOURCE_EXHAUSTED") == true) {
-                    emit(Pair("Error: API quota exhausted. Try again later.", true))
+                if (success && tempImageFile.exists()) {
+                    Log.d(TAG, "Image saved to: ${tempImageFile.absolutePath}")
+                    tempImageFile
                 } else {
-                    emit(Pair("Error: ${e.localizedMessage ?: "Unknown error"}", true))
+                    Log.e(TAG, "Failed to save image to file")
+                    null
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error saving image to file", e)
+                null
             }
-            .onCompletion { cause ->
-                if (!isFinished) {
-                    if (cause == null) {
-                        val finalModelResponse = fullResponseBuilder.toString()
-                        Log.d(
-                            "GeminiService",
-                            "Stream completed. Full response: $finalModelResponse"
-                        )
-                        chatHistory.add(userInputContent)
-                        chatHistory.add(content(role = "model") { text(finalModelResponse) })
-                    } else {
-                        Log.e("GeminiService", "Stream failed with exception", cause)
+        } else {
+            null
+        }
+
+        try {
+            // Call LiteRT model through LiteRtManager
+            liteRtManager.generateResponse(
+                prompt = userPrompt,
+                imageFile = imageFile,
+                audioBytes = null
+            ).collect { token ->
+                emit(token)
+            }
+            Log.d(TAG, "LiteRT inference completed successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during LiteRT inference", e)
+            emit("Error: ${e.localizedMessage ?: "Unknown error"}")
+        } finally {
+            // Clean up temporary image file
+            imageFile?.let { file ->
+                try {
+                    if (file.exists()) {
+                        file.delete()
+                        Log.d(TAG, "Cleaned up temp image file")
                     }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to delete temp image file", e)
                 }
             }
-            .flowOn(Dispatchers.IO)
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * Saves a Bitmap to a JPEG file.
+     */
+    private fun saveBitmapToFile(bitmap: Bitmap, file: File): Boolean {
+        return try {
+            file.outputStream().use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error compressing bitmap to file", e)
+            false
+        }
     }
 
+    companion object {
+        private const val TAG = "LiteRtService"
+    }
 }
