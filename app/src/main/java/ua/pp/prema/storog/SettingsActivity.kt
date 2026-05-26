@@ -110,7 +110,6 @@ fun SettingsScreen() {
                 onCheckedChange = { newValue ->
                     preferGpu = newValue
                     appPreferences.edit().putBoolean("prefer_gpu", newValue).apply()
-                    Toast.makeText(context, "Restart monitoring to apply changes", Toast.LENGTH_SHORT).show()
                 }
             )
         }

@@ -213,6 +213,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun availableModels(): List<ModelInfo> = liteRtManager.availableModels()
 
+    // Reload currently selected model (used after Settings change)
+    fun reloadModel() {
+        val downloaded = liteRtManager.downloadedModels()
+        if (downloaded.isNotEmpty()) {
+            val prefs = getApplication<Application>()
+                .getSharedPreferences("app_prefs", Application.MODE_PRIVATE)
+            val lastName = prefs.getString("last_model_name", null)
+            val model = downloaded.firstOrNull { it.name == lastName } ?: downloaded[0]
+            liteRtManager.close()
+            loadModel(model)
+        }
+    }
     // ── Monitoring API ─────────────────────────────────────────────────────
 
     // Example of a function that is called by a button press or other event

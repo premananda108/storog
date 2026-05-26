@@ -10,6 +10,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -161,6 +162,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             StorogTheme {
                 val currentContext = LocalContext.current
+                val settingsLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult()
+                ) {
+                    mainViewModel.reloadModel()
+                }
                 val uiState by mainViewModel.uiState.collectAsState()
 
                 Scaffold(
@@ -186,7 +192,7 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     Button(onClick = {
                                         val intent = Intent(currentContext, SettingsActivity::class.java)
-                                        currentContext.startActivity(intent)
+                                        settingsLauncher.launch(intent)
                                     }) {
                                         Text("Settings")
                                     }
