@@ -195,7 +195,7 @@ class LiteRtManager(private val context: Context) {
                         modelPath = modelPath,
                         backend = Backend.GPU(),
                         visionBackend = Backend.GPU(),
-                        audioBackend = Backend.CPU(),
+                        audioBackend = null,
                         cacheDir = cache
                     )
                 ).apply { initialize() }
@@ -227,7 +227,7 @@ class LiteRtManager(private val context: Context) {
                 modelPath = modelPath,
                 backend = Backend.CPU(),
                 visionBackend = Backend.CPU(),
-                audioBackend = Backend.CPU(),
+                audioBackend = null,
                 cacheDir = cache
             )
         ).apply { initialize() }
