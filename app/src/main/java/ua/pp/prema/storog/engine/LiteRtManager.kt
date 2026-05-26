@@ -210,6 +210,14 @@ class LiteRtManager(private val context: Context) {
                     rawMsg.contains("Vulkan", ignoreCase = true)  -> "Vulkan is not supported"
                     else -> rawMsg
                 }
+                // Persist preference to avoid trying GPU again on next launch
+                try {
+                    context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                        .edit()
+                        .putBoolean("prefer_gpu", false)
+                        .apply()
+                } catch (_: Exception) {
+                }
             }
         }
 

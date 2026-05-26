@@ -128,6 +128,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Check if there was a GPU→CPU fallback
                 val fallback = liteRtManager.gpuFallbackReason
                 if (fallback != null) {
+                    // Persist preference to avoid reattempting GPU next time
+                    getApplication<Application>()
+                        .getSharedPreferences("app_prefs", Application.MODE_PRIVATE)
+                        .edit()
+                        .putBoolean("prefer_gpu", false)
+                        .apply()
                     _events.trySend(UiEvent.ShowGpuFallback(fallback))
                     liteRtManager.clearGpuFallback()
                 }
@@ -215,14 +221,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Reload currently selected model (used after Settings change)
     fun reloadModel() {
+        if (uiState.value.modelStatus is ModelStatus.Loading) return
         val downloaded = liteRtManager.downloadedModels()
         if (downloaded.isNotEmpty()) {
             val prefs = getApplication<Application>()
                 .getSharedPreferences("app_prefs", Application.MODE_PRIVATE)
             val lastName = prefs.getString("last_model_name", null)
             val model = downloaded.firstOrNull { it.name == lastName } ?: downloaded[0]
-            liteRtManager.close()
-            loadModel(model)
+
+            viewModelScope.launch {
+                _uiState.update { it.copy(isMonitoringEnabled = false) }
+                // If a previous GPU fallback was recorded, persist prefer_gpu=false before reload
+                if (liteRtManager.gpuFallbackReason != null) {
+                    getApplication<Application>()
+                        .getSharedPreferences("app_prefs", Application.MODE_PRIVATE)
+                        .edit()
+                        .putBoolean("prefer_gpu", false)
+                        .apply()
+                }
+                kotlinx.coroutines.delay(500)
+                liteRtManager.close()
+                loadModel(model)
+            }
         }
     }
     // ── Monitoring API ─────────────────────────────────────────────────────
