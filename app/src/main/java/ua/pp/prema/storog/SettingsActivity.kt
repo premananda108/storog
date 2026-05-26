@@ -40,16 +40,21 @@ fun SettingsScreen() {
     var chatId by remember { mutableStateOf(TextFieldValue("")) }
     var botToken by remember { mutableStateOf(TextFieldValue("")) }
     var showDetectHint by remember { mutableStateOf(false) }
+    var preferGpu by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val sharedPreferences = remember {
         context.getSharedPreferences("StorogSettings", Context.MODE_PRIVATE)
     }
+    val appPreferences = remember {
+        context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+    }
 
-    // Load saved chat_id on first launch
+    // Load saved chat_id and GPU preference on first launch
     LaunchedEffect(Unit) {
         chatId = TextFieldValue(sharedPreferences.getString("TARGET_CHAT_ID", "") ?: "")
         botToken = TextFieldValue(sharedPreferences.getString("MY_BOT_TOKEN", "") ?: "")
+        preferGpu = appPreferences.getBoolean("prefer_gpu", false)
     }
 
     Column(
@@ -78,8 +83,39 @@ fun SettingsScreen() {
             label = { Text("Telegram Bot Token (MY_BOT_TOKEN)") },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp)
+                .padding(bottom = 16.dp)
         )
+
+        // GPU Switch
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Use GPU (experimental)",
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Text(
+                    text = "May cause freezes on some devices",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            Switch(
+                checked = preferGpu,
+                onCheckedChange = { newValue ->
+                    preferGpu = newValue
+                    appPreferences.edit().putBoolean("prefer_gpu", newValue).apply()
+                    Toast.makeText(context, "Restart monitoring to apply changes", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = {
