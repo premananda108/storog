@@ -33,7 +33,7 @@ class LiteRtService(
         val imageFile: File? = if (imageBitmap != null) {
             var resizedBitmap: Bitmap? = null
             try {
-                val bitmapToSave = resizeBitmap(imageBitmap, 512).also {
+                val bitmapToSave = resizeBitmap(imageBitmap, 256).also {
                     if (it !== imageBitmap) resizedBitmap = it
                 }
                 val tempImageFile = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
